@@ -41,4 +41,4 @@ If you want to see a simple usage and test vector verification see the file [Has
 
 ## Creating Generators
 
-For the signature scheme a number of distinct generators in the group *G1* are required and the procedure for this is given in the *draft* section 4.1. The JavaScript file [BBSGenGenerators.js](JavaScript/BBSGenGenerators.js) is a **work in progress** implementation.
+For the signature scheme a number of distinct generators in the group *G1* are required and the procedure for this is given in the *draft* section 4.1. The JavaScript file [BBSGenGenerators.js](JavaScript/BBSGenGenerators.js) shows how to do this and verifies against the draft test vectors.

@@ -1,7 +1,6 @@
 /*  Checking out the BBS Generation of Generators using @noble/hashes library.
 
-Currently **NOT** able to verify/generate generators. Am able to verify valid that given
-generators are valid curve points.
+Message generators are **verified**!
 
 From the BBS draft:
 
@@ -137,13 +136,15 @@ const k = 128
 //                                           the ciphersuite.
 const seed_len = Math.ceil((Math.ceil(Math.log2(Number(r)) + k)) / 8);
 console.log(`seed_len is: ${seed_len}`);
-const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
-
+// Use this for the base point P1 generation
+// const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
+// Use this for message generator creation
+const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_MESSAGE_GENERATOR_SEED");
 // v = expand_message(generator_seed, seed_dst, seed_len)
 let v = await bls.utils.expandMessageXMD(gen_seed, seed_dst, seed_len);
 console.log("Initial v:");
 console.log(bytesToHex(v));
-let count = 5;
+let count = 6;
 let n = 1;
 for (let i = 0; i < count; i++) {
     let v_cat_n_4 = concat(v, i2osp(n, 4));
@@ -151,8 +152,8 @@ for (let i = 0; i < count; i++) {
     console.log(bytesToHex(v_cat_n_4));
     // order of arguments message, DST, length in bytes
     v = await bls.utils.expandMessageXMD(v_cat_n_4, seed_dst, seed_len);
-    console.log("current v:")
-    console.log(bytesToHex(v));
+    // console.log("current v:")
+    // console.log(bytesToHex(v));
     n = n + 1;
     // candidate = hash_to_curve_g1(v, generator_dst)
     let candidate = await bls.PointG1.hashToCurve(v, {DST: gen_dst_string});
