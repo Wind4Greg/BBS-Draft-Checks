@@ -81,8 +81,6 @@ Test vectors:
 
 import * as bls from '@noble/bls12-381';
 
-// Sample code from hashes/hkdf
-
 import { hkdf, extract, expand } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha256';
 import { randomBytes, bytesToHex, hexToBytes } from '@noble/hashes/utils';
@@ -139,7 +137,7 @@ const k = 128
 //                                           the ciphersuite.
 const seed_len = Math.ceil((Math.ceil(Math.log2(Number(r)) + k)) / 16);
 console.log(`seed_len is: ${seed_len}`);
-const gen_seed = te.encode("BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_MESSAGE_GENERATOR_SEED");
+const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
 // v = expand_message(generator_seed, seed_dst, seed_len)
 let v = await bls.utils.expandMessageXMD(gen_seed, seed_dst, seed_len);
 console.log(v);
