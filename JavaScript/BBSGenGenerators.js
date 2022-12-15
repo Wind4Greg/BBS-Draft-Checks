@@ -80,10 +80,7 @@ Test vectors:
 */
 
 import * as bls from '@noble/bls12-381';
-
-import { hkdf, extract, expand } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha256';
-import { randomBytes, bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { bytesToHex } from '@noble/hashes/utils';
 
 // Integer to Octet Stream borrowed from inside bls12-381
 function i2osp(value, length) {
@@ -118,49 +115,48 @@ function concat(buffer1, buffer2) {
 };
 
 // **Set up the various IDs and DSTs**
-let te = new TextEncoder(); // Used to convert to
+// See [TextEncoder](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder)
+let te = new TextEncoder(); // Used to convert string to uint8Array, utf8 encoding
+
 // - seed_dst, octet string representing the domain separation tag:
 //             utf8(ciphersuite_id || "SIG_GENERATOR_SEED_"), where
 //             ciphersuite_id is defined by the ciphersuite.
 const ciphersuite_id =  "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
-// See [TextEncoder](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder)
 const seed_dst = te.encode(ciphersuite_id + "SIG_GENERATOR_SEED_");
+
 // - generator_dst, octet string representing the domain separation tag:
 //                  utf8(ciphersuite_id || "SIG_GENERATOR_DST_"), where
 //                  ciphersuite_id is defined by the ciphersuite.
 const gen_dst = te.encode(ciphersuite_id + "SIG_GENERATOR_DST_");
 const gen_dst_string = ciphersuite_id + "SIG_GENERATOR_DST_";
+
 const r = bls.CURVE.r;
 // From section 6.2
 const k = 128
 // - seed_len = ceil((ceil(log2(r)) + k)/8), where r and k are defined by
 //                                           the ciphersuite.
-const seed_len = Math.ceil((Math.ceil(Math.log2(Number(r)) + k)) / 16);
+const seed_len = Math.ceil((Math.ceil(Math.log2(Number(r)) + k)) / 8);
 console.log(`seed_len is: ${seed_len}`);
 const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
+
 // v = expand_message(generator_seed, seed_dst, seed_len)
 let v = await bls.utils.expandMessageXMD(gen_seed, seed_dst, seed_len);
-console.log(v);
-let count = 3;
+console.log("Initial v:");
+console.log(bytesToHex(v));
+let count = 5;
 let n = 1;
-// console.log(i2osp(1,4));
 for (let i = 0; i < count; i++) {
-    v = await bls.utils.expandMessageXMD(concat(v, i2osp(n, 4)), seed_dst, seed_len);
-    console.log(v);
+    let v_cat_n_4 = concat(v, i2osp(n, 4));
+    console.log("v concatenated with i2osp(n,4):");
+    console.log(bytesToHex(v_cat_n_4));
+    // order of arguments message, DST, length in bytes
+    v = await bls.utils.expandMessageXMD(v_cat_n_4, seed_dst, seed_len);
+    console.log("current v:")
+    console.log(bytesToHex(v));
     n = n + 1;
     // candidate = hash_to_curve_g1(v, generator_dst)
-    let thingy = await bls.PointG1.hashToCurve(v, {DST: gen_dst_string});
-    console.log(thingy);
-    console.log(bytesToHex(thingy.toRawBytes(true)));
+    let candidate = await bls.PointG1.hashToCurve(v, {DST: gen_dst_string});
+    console.log("Candidate compressed generator point:");
+    console.log(bytesToHex(candidate.toRawBytes(true))); // true for compressed point
 }
 
-let basePtG1 = bls.PointG1.BASE;
-console.log(bytesToHex(basePtG1.toRawBytes(true)));
-
-// Try taking one of the test vector points and see if it is really on the
-// curve and if we can get it back. Will throw and exception if not a valid curve point
-let samplePt = bls.PointG1.fromHex("8533b3fbea84e8bd9ccee177e3c56fbe1d2e33b798e491228f6ed65bb4d1e0ada07bcc4489d8751f8ba7a1b69b6eecd7");
-console.log(samplePt);
-// Note the parameter toRawBytes is *isCompressed* which encodes the sign of y and the x value
-// Non-compressed gives you x and y.
-console.log(bytesToHex(samplePt.toRawBytes(true)));
