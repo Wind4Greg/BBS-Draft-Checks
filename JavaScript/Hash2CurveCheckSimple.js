@@ -34,8 +34,6 @@ Test vectors moved to code below. Everything is **verifying**.
 */
 
 import * as bls from '@noble/bls12-381';
-import { map_to_curve_simple_swu_3mod4, Fp, isogenyMapG1 } from '@noble/bls12-381/math';
-import { sha256 } from '@noble/hashes/sha256';
 
 let te = new TextEncoder(); //  to go from string to uint8Array
 let utf8decoder = new TextDecoder(); // to go from uint8Array to string
