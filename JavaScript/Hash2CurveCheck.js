@@ -1,4 +1,5 @@
-/* Check of noble BLS12-381 hash to curve and its use.
+/* Check of noble BLS12-381 hash to curve and its use. Checks all intermediate quantities
+    specified in the drafts test vectors.
 
 The BBS signature scheme uses the call "hash_to_curve_g1(v, generator_dst)".
 
