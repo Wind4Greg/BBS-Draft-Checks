@@ -80,38 +80,7 @@ Test vectors:
 
 import * as bls from '@noble/bls12-381';
 import { bytesToHex } from '@noble/hashes/utils';
-
-// Integer to Octet Stream borrowed from inside bls12-381
-function i2osp(value, length) {
-    // This check fails if length is 4 or greater since the integer raps around in the browser
-    // if (value < 0 || value >= 1 << (8 * length)) {
-    //     throw new Error(`bad I2OSP call: value=${value} length=${length}`);
-    // }
-    const res = Array.from({ length }).fill(0);
-    for (let i = length - 1; i >= 0; i--) {
-        res[i] = value & 0xff;
-        value >>>= 8;
-    }
-    return new Uint8Array(res);
-}
-
-// Octet Stream to Integer (bytesToNumberBE)
-function os2ip(bytes) {
-    let result = 0n;
-    for (let i = 0; i < bytes.length; i++) {
-        result <<= 8n;
-        result += BigInt(bytes[i]);
-    }
-    return result;
-}
-
-// Strange that this doesn't exist...
-function concat(buffer1, buffer2) {
-    let tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
-    for (let i = 0; i < buffer1.byteLength; i++) tmp[i] = buffer1[i];
-    for (let i = 0; i < buffer2.byteLength; i++) tmp[i + buffer1.byteLength] = buffer2[i];
-    return tmp;
-};
+import {i2osp, concat} from './myUtils.js';
 
 // **Set up the various IDs and DSTs**
 // See [TextEncoder](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder)
