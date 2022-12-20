@@ -47,3 +47,8 @@ For the signature scheme a number of distinct generators in the group *G1* are r
 
 Need to implement *MapMessageToScalar* per draft section 4.2.1. This requires implementing the functions *encode_for_hash()* and *hash_to_scalar()*. For individual messages the *encode_for_hash()* so I embedded it the the JavaScript file [BBSMsg2Scalar.js](JavaScript/BBSMsg2Scalar.js) which implements the *hash_to_scalar()* function and verifies it against the test vectors in section 7.4.1 of the draft.
 
+## Signing
+
+Implemented and tested in file [BBSSign.js](JavaScript/BBSSign.js) with additional functions in [BBSEncodeHash.js](JavaScript/BBSEncodeHash.js) to put things in the proper format prior to hashing and some helpers in [myUtils.js](JavaScript/myUtils.js).
+
+Verified against SHA-256 cases: [signature001.json](https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature001.json) (single message), and [signature004.json](https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature004.json).

@@ -38,4 +38,35 @@ function concat(buffer1, buffer2) {
     return tmp;
 };
 
-export { i2osp, os2ip, concat };
+// from noble but not exported
+function hexToBytes(hex) {
+    if (typeof hex !== 'string') {
+      throw new TypeError('hexToBytes: expected string, got ' + typeof hex);
+    }
+    if (hex.length % 2) throw new Error('hexToBytes: received invalid unpadded hex');
+    const array = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < array.length; i++) {
+      const j = i * 2;
+      const hexByte = hex.slice(j, j + 2);
+      if (hexByte.length !== 2) throw new Error('Invalid byte sequence');
+      const byte = Number.parseInt(hexByte, 16);
+      if (Number.isNaN(byte) || byte < 0) throw new Error('Invalid byte sequence');
+      array[i] = byte;
+    }
+    return array;
+  }
+  
+  function numberToHex(num, byteLength){
+    if (!byteLength) throw new Error('byteLength target must be specified');
+    const hex = num.toString(16);
+    const p1 = hex.length & 1 ? `0${hex}` : hex;
+    return p1.padStart(byteLength * 2, '0');
+  }
+  
+  function numberToBytesBE(num, byteLength) {
+    const res = hexToBytes(numberToHex(num, byteLength));
+    if (res.length !== byteLength) throw new Error('numberToBytesBE: wrong byteLength');
+    return res;
+  }
+
+export { i2osp, os2ip, concat, numberToBytesBE };
