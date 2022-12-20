@@ -52,3 +52,15 @@ Need to implement *MapMessageToScalar* per draft section 4.2.1. This requires im
 Implemented and tested in file [BBSSign.js](JavaScript/BBSSign.js) with additional functions in [BBSEncodeHash.js](JavaScript/BBSEncodeHash.js) to put things in the proper format prior to hashing and some helpers in [myUtils.js](JavaScript/myUtils.js).
 
 Verified against SHA-256 cases: [signature001.json](https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature001.json) (single message), and [signature004.json](https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature004.json).
+
+## Verifying
+
+Implemented and tested in file [BBSVerify.js](JavaScript/BBSVerify.js). Note that for now I just copied over the helper functions implemented in the [BBSSign.js](JavaScript/BBSSign.js). The new stuff in here are some computations in G2, the use of the elliptic curve pairing function, and some computations in GT, i.e., $F_{p^{12}}$.
+
+## Proof Generation
+
+Still to come.
+
+## Proof Verification
+
+Still to come.
