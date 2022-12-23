@@ -55,13 +55,12 @@ Procedure:
 
 
 import * as bls from '@noble/bls12-381';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
+import { hexToBytes } from '@noble/hashes/utils';
+import { os2ip} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
+import { hash_to_scalar, messages_to_scalars, prepareGenerators } from './BBSGeneral.js';
 
 const ciphersuite_id = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
-const k = 128;
-const expand_len = Math.ceil((Math.ceil(Math.log2(Number(bls.CURVE.r))) + k) / 8);
 
 async function verify(PK, signature, header, messages, generators) {
     let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
@@ -117,92 +116,6 @@ function octets_to_sig(sig_octets) {
     return {A, e, s};
 }
 
-const OCTET_SCALAR_LENGTH = 32;
-
-function signature_to_octets(A, e, s) {
-    let octets = A.toRawBytes(true);
-    octets = concat(octets, numberToBytesBE(e, OCTET_SCALAR_LENGTH));
-    octets = concat(octets, numberToBytesBE(s, OCTET_SCALAR_LENGTH));
-    return octets;
-}
-
-async function hash_to_scalar(msg_octets, count, dst) {
-    const len_in_bytes = count * expand_len;
-    let t = 0;
-    let have_scalars = false;
-    let scalars = [];
-    while (!have_scalars) {
-        let msg_prime = concat(msg_octets, concat(i2osp(t, 1), i2osp(count, 4)));
-        let uniform_bytes = await bls.utils.expandMessageXMD(msg_prime, dst, len_in_bytes);
-        have_scalars = true;
-        for (let i = 0; i < count; i++) {
-            let tv = uniform_bytes.slice(i * expand_len, (i + 1) * expand_len);
-            // console.log(`length tv: ${tv.length}`);
-            let scalar_i = os2ip(tv) % bls.CURVE.r;
-            scalars[i] = scalar_i;
-            if (scalar_i === 0n) {
-                have_scalars = false;
-            }
-        }
-        t++;
-    }
-    return scalars;
-}
-
-async function messages_to_scalars(messages) {
-    const dst = new TextEncoder().encode(ciphersuite_id + "MAP_MSG_TO_SCALAR_AS_HASH_");
-    let scalars = [];
-    for (let i = 0; i < messages.length; i++) {
-        let msg = messages[i];
-        // Need to "encode to hash" before feeding the message to hash to scalar
-        // For a message in octets they use: el_octs = I2OSP(length(el), 8) || el
-        let encode_for_hash = concat(i2osp(msg.length, 8), msg)
-        let stuff = await hash_to_scalar(encode_for_hash, 1, dst);
-        scalars.push(stuff[0]);
-        // console.log(`Message: ${bytesToHex(msg)}`);
-        // console.log("Computed scalar in hex:");
-        // console.log(stuff[0].toString(16));
-    }
-    return scalars;
-}
-
-async function prepareGenerators(L) {
-    // Compute P1, Q1, Q2, H1, ..., HL
-    let generators = {H: []};
-    let te = new TextEncoder(); // Used to convert string to uint8Array, utf8 encoding
-    
-    const seed_dst = te.encode(ciphersuite_id + "SIG_GENERATOR_SEED_");
-    const gen_dst_string = ciphersuite_id + "SIG_GENERATOR_DST_";
-    const k = 128
-    const seed_len = Math.ceil((Math.ceil(Math.log2(Number(bls.CURVE.r)) + k)) / 8);
-    const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_MESSAGE_GENERATOR_SEED");
-    let v = await bls.utils.expandMessageXMD(gen_seed, seed_dst, seed_len);
-    let count = L + 2;
-    let n = 1;
-    for (let i = 0; i < count; i++) {
-        v = await bls.utils.expandMessageXMD(concat(v, i2osp(n, 4)), seed_dst, seed_len);
-        n = n + 1;
-        let candidate = await bls.PointG1.hashToCurve(v, { DST: gen_dst_string });
-        if (i === 0) {
-            generators.Q1 = candidate;
-        } else if (i === 1) {
-            generators.Q2 = candidate;
-        } else {
-            generators.H.push(candidate);
-        }
-        // console.log("Candidate compressed generator point:");
-        // console.log(bytesToHex(candidate.toRawBytes(true))); // true for compressed point
-    }
-    // Generate P1
-    const gen_seed_P1 = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
-    v = await bls.utils.expandMessageXMD(gen_seed_P1, seed_dst, seed_len);
-    v = await bls.utils.expandMessageXMD(concat(v, i2osp(1, 4)), seed_dst, seed_len);
-    let candidate = await bls.PointG1.hashToCurve(v, { DST: gen_dst_string });
-    generators.P1 = candidate;
-    // console.log("P1 generator point:");
-    // console.log(bytesToHex(candidate.toRawBytes(true))); // true for compressed point
-    return generators;
-}
 
 // From draft
 let test_msgs = [

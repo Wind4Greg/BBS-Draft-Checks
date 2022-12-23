@@ -1,0 +1,80 @@
+/* Functions used in multiple BBS signature operations */
+import * as bls from '@noble/bls12-381';
+import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
+// These are really fixed for the ciphersuite
+// const k = 128;
+// const expand_len = Math.ceil((Math.ceil(Math.log2(Number(bls.CURVE.r))) + k) / 8); // 48
+// const seed_len = Math.ceil((Math.ceil(Math.log2(Number(bls.CURVE.r)) + k)) / 8); //48
+const EXPAND_LEN = 48;
+const SEED_LEN = 48;
+const CIPHERSUITE_ID = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
+
+async function hash_to_scalar(msg_octets, count, dst) {
+    const len_in_bytes = count * EXPAND_LEN;
+    let t = 0;
+    let have_scalars = false;
+    let scalars = [];
+    while (!have_scalars) {
+        let msg_prime = concat(msg_octets, concat(i2osp(t, 1), i2osp(count, 4)));
+        let uniform_bytes = await bls.utils.expandMessageXMD(msg_prime, dst, len_in_bytes);
+        have_scalars = true;
+        for (let i = 0; i < count; i++) {
+            let tv = uniform_bytes.slice(i * EXPAND_LEN, (i + 1) * EXPAND_LEN);
+            // console.log(`length tv: ${tv.length}`);
+            let scalar_i = os2ip(tv) % bls.CURVE.r;
+            scalars[i] = scalar_i;
+            if (scalar_i === 0n) {
+                have_scalars = false;
+            }
+        }
+        t++;
+    }
+    return scalars;
+}
+
+async function messages_to_scalars(messages) {
+    const dst = new TextEncoder().encode(CIPHERSUITE_ID + "MAP_MSG_TO_SCALAR_AS_HASH_");
+    let scalars = [];
+    for (let i = 0; i < messages.length; i++) {
+        let msg = messages[i];
+        // Need to "encode to hash" before feeding the message to hash to scalar
+        // For a message in octets they use: el_octs = I2OSP(length(el), 8) || el
+        let encode_for_hash = concat(i2osp(msg.length, 8), msg)
+        let stuff = await hash_to_scalar(encode_for_hash, 1, dst);
+        scalars.push(stuff[0]);
+    }
+    return scalars;
+}
+
+async function prepareGenerators(L) {
+    // Compute P1, Q1, Q2, H1, ..., HL
+    let generators = {H: []};
+    let te = new TextEncoder(); // Used to convert string to uint8Array, utf8 encoding
+    const seed_dst = te.encode(CIPHERSUITE_ID + "SIG_GENERATOR_SEED_");
+    const gen_dst_string = CIPHERSUITE_ID + "SIG_GENERATOR_DST_";
+    const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_MESSAGE_GENERATOR_SEED");
+    let v = await bls.utils.expandMessageXMD(gen_seed, seed_dst, SEED_LEN);
+    let count = L + 2;
+    let n = 1;
+    for (let i = 0; i < count; i++) {
+        v = await bls.utils.expandMessageXMD(concat(v, i2osp(n, 4)), seed_dst, SEED_LEN);
+        n = n + 1;
+        let candidate = await bls.PointG1.hashToCurve(v, { DST: gen_dst_string });
+        if (i === 0) {
+            generators.Q1 = candidate;
+        } else if (i === 1) {
+            generators.Q2 = candidate;
+        } else {
+            generators.H.push(candidate);
+        }
+    }
+    // Generate P1
+    const gen_seed_P1 = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
+    v = await bls.utils.expandMessageXMD(gen_seed_P1, seed_dst, SEED_LEN);
+    v = await bls.utils.expandMessageXMD(concat(v, i2osp(1, 4)), seed_dst, SEED_LEN);
+    let candidate = await bls.PointG1.hashToCurve(v, { DST: gen_dst_string });
+    generators.P1 = candidate;
+    return generators;
+}
+
+export {hash_to_scalar, messages_to_scalars, prepareGenerators};
