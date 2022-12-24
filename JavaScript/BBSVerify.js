@@ -58,7 +58,7 @@ import * as bls from '@noble/bls12-381';
 import { hexToBytes } from '@noble/hashes/utils';
 import { os2ip} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
-import { hash_to_scalar, messages_to_scalars, prepareGenerators } from './BBSGeneral.js';
+import { hash_to_scalar, messages_to_scalars, prepareGenerators, octets_to_sig } from './BBSGeneral.js';
 
 const ciphersuite_id = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
 
@@ -99,22 +99,6 @@ async function verify(PK, signature, header, messages, generators) {
     return result.equals(bls.Fp12.ONE);
 }
 
-function octets_to_sig(sig_octets) {
-    if (sig_octets.length !== 112) {
-        throw new TypeError('octets_to_sig: bad signature length');
-    }
-    let A_oct = sig_octets.slice(0, 48);
-    let A = bls.PointG1.fromHex(A_oct);
-    let e = os2ip(sig_octets.slice(48, 80));
-    if (e < 0n || e >= bls.CURVE.r) {
-        throw new TypeError('octets_to_sig: bad e value');
-    }
-    let s = os2ip(sig_octets.slice(80, 112));
-    if (s < 0n || s >= bls.CURVE.r) {
-        throw new TypeError('octets_to_sig: bad s value');
-    }
-    return {A, e, s};
-}
 
 
 // From draft

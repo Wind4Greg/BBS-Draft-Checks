@@ -59,8 +59,8 @@ Implemented and tested in file [BBSVerify.js](JavaScript/BBSVerify.js). Note tha
 
 ## Proof Generation
 
-Still to come.
+This is being worked on in the file [BBSProofGen.js](JavaScript/BBSProofGen.js). Currently can only get the reveal all messages case to "verify" with the *proof verification* code below. Note that there are no test vectors to guide you. Mostly due to the use of random numbers needed in each proof generated.
 
 ## Proof Verification
 
-Still to come.
+This is implemented in the file [BBSProofVerify.js](JavaScript/BBSProofVerify.js) and has been tested against some test cases including all messages revealed and only a subset revealed.
