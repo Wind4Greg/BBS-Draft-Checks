@@ -110,12 +110,12 @@ async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclos
         tempSet.delete(dis);
     }
     let undisclosed = Array.from(tempSet); // Contains all the undisclosed indexes
-    console.log(disclosed_indexes);
-    console.log(undisclosed);
+    // console.log(disclosed_indexes);
+    // console.log(undisclosed);
     // (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1,...,m^_jU)) = proof_result
     let proof_result = octets_to_proof(proof, U);
     let {Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU} = proof_result;
-    console.log(proof_result);
+    // console.log(proof_result);
     // W = octets_to_pubkey(PK)
     let W = bls.PointG2.fromHex(PK);
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
@@ -132,23 +132,23 @@ async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclos
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
-    console.log(`domain: ${domain}`);
+    // console.log(`domain: ${domain}`);
     // C1 = (Abar - D) * c + A' * e^ + Q_1 * r2^
     let C1 = Abar.subtract(D).multiply(c).add(Aprime.multiply(eHat)).add(generators.Q1.multiply(r2Hat));
-    console.log(`C1: ${C1}`);
+    // console.log(`C1: ${C1}`);
     // T = P1 + Q_2 * domain + H_i1 * msg_i1 + ... + H_iR * msg_iR
     let T = generators.P1.add(generators.Q2.multiply(domain));
     for (let i = 0; i < R; i ++) {
         T = T.add(generators.H[disclosed_indexes[i]].multiply(disclosed_messages[i]));
     }
-    console.log(`T: ${T}`);
+    // console.log(`T: ${T}`);
     // C2 = T * c - D * r3^ + Q_1 * s^ + H_j1 * m^_j1 + ... + H_jU * m^_jU
     let C2 = T.multiply(c).subtract(D.multiply(r3Hat)).add(generators.Q1.multiply(sHat));
     for (let j = 0; j < U; j++) {
-        console.log(`j = ${j}, undisclosed[j]: ${undisclosed[j]}`);
+        // console.log(`j = ${j}, undisclosed[j]: ${undisclosed[j]}`);
         C2 = C2.add(generators.H[undisclosed[j]].multiply(mHatU[j]));
     }
-    console.log(`C2: ${C2}`);
+    // console.log(`C2: ${C2}`);
     // 13. cv_array = (A', Abar, D, C1, C2, R, i1, ..., iR, msg_i1, ..., msg_iR, domain, ph)
     // 14. cv_for_hash = encode_for_hash(cv_array)
     // 15. if cv_for_hash is INVALID, return INVALID
@@ -169,7 +169,7 @@ async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclos
     let cv_for_hash = encode_to_hash(cv_array);
     let [cv] = await hash_to_scalar(cv_for_hash, 1, dst);
     if (c !== cv) {
-        console.log("c is not equal to cv");
+        // console.log("c is not equal to cv");
         return false;
     }
     // 18. if A' == Identity_G1, return INVALID

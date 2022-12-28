@@ -119,10 +119,9 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
         tempSet.delete(dis);
     }
     let undisclosed = Array.from(tempSet); // Contains all the undisclosed indexes
-    console.log(disclosed_indexes);
-    console.log(undisclosed);
+    // console.log(disclosed_indexes);
+    // console.log(undisclosed);
 
-    
     let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
     // check that we have enough generators for the messages
     if (messages.length > generators.H.length) {
@@ -144,7 +143,7 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
-    console.log(`domain: ${domain}`);
+    // console.log(`domain: ${domain}`);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
     let B = generators.P1;
     B = B.add(generators.Q1.multiply(s));
@@ -156,9 +155,9 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     // 9.  (m~_j1, ..., m~_jU) = hash_to_scalar(PRF(prf_len), U)
     let [r1, r2, eTilde, r2Tilde, r3Tilde, sTilde] = await hash_to_scalar(randomBytes(PRF_LEN), 6, dst);
     let mTildeU = await hash_to_scalar(randomBytes(PRF_LEN), U, dst);
-    console.log(`r1: ${r1}`);
-    console.log(`B: ${B}`);
-    console.log(`m~U: ${mTildeU}`);
+    // console.log(`r1: ${r1}`);
+    // console.log(`B: ${B}`);
+    // console.log(`m~U: ${mTildeU}`);
     // 11. r3 = r1 ^ -1 mod r
     let r3 = (new bls.Fr(r1)).invert();
     // 12. A' = A * r1
@@ -166,25 +165,31 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     // 13. Abar = A' * (-e) + B * r1
     let negE = new bls.Fr(e).negate().value;
     let Abar = Aprime.multiply(negE).add(B.multiply(r1));
-    console.log(`e: ${e}, -e: ${negE}`);
-    console.log(`Aprime: ${Aprime}`);
-    console.log(`Abar: ${Abar}`);
+    // console.log(`e: ${e}, -e: ${negE}`);
+    // console.log(`Aprime: ${Aprime}`);
+    // console.log(`Abar: ${Abar}`);
     // 14. D = B * r1 + Q_1 * r2
     let D = B.multiply(r1).add(generators.Q1.multiply(r2));
-    console.log(`D: ${D}`);
+    // console.log(`D: ${D}`);
     // 15. s' = r2 * r3 + s mod r
     let sPrime = new bls.Fr(r2).multiply(r3).add(new bls.Fr(s)).value;
-    console.log(`sPrime: ${sPrime}`);
+    // console.log(`sPrime: ${sPrime}`);
     // 16. C1 = A' * e~ + Q_1 * r2~
     let C1 = Aprime.multiply(eTilde).add(generators.Q1.multiply(r2Tilde));
-    console.log(`C1: ${C1}`);
+    // console.log(`C1: ${C1}`);
     // 17. C2 = D * (-r3~) + Q_1 * s~ + H_j1 * m~_j1 + ... + H_jU * m~_jU
     let neg_r3Tilde = new bls.Fr(r3Tilde).negate().value;
-    let C2 = D.multiply(neg_r3Tilde).add(generators.Q1.multiply(sTilde));
+    let C2 = D.multiply(neg_r3Tilde);
+    // console.log(`C2 partial 1: ${C2}`);
+    C2 = C2.add(generators.Q1.multiply(sTilde));
+    // console.log(`C2 partial 2: ${C2}`);
+    // console.log(`undisclosed: ${undisclosed}`);
     for (let j = 0; j < U; j++) {
-        C2 = C2.add(generators.H[undisclosed[j]]).multiply(mTildeU[j]);
+        C2 = C2.add(generators.H[undisclosed[j]].multiply(mTildeU[j]));
+        // console.log(`H[undisclosed[j]]: ${generators.H[undisclosed[j]]}, mTildeU[j]: ${mTildeU[j]}`);
+        // console.log(`j = ${j}, C2 = ${C2}`);
     }
-    console.log(`C2: ${C2}`);
+    // console.log(`C2: ${C2}`);
     // 18. c_array = (A', Abar, D, C1, C2, R, i1, ..., iR, msg_i1, ..., msg_iR, domain, ph)
     // // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
     let c_array = [{type: "GPoint", value: Aprime}, {type: "GPoint", value: Abar},
@@ -204,27 +209,27 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     let c_for_hash = encode_to_hash(c_array);
     // 21. c = hash_to_scalar(c_for_hash, 1)
     let [c] = await hash_to_scalar(c_for_hash, 1, dst);
-    console.log(`c: ${c}`);
+    // console.log(`c: ${c}`);
     // 22. e^ = c * e + e~ mod r
     // console.log(`type c: ${typeof(c)}, e: ${typeof(e)}, eTilde: ${typeof(eTilde)}`);
     let eHat = (new bls.Fr(c).multiply(e).add(new bls.Fr(eTilde))).value;
-    console.log(`eHat: ${eHat}`);
+    // console.log(`eHat: ${eHat}`);
     // 23. r2^ = c * r2 + r2~ mod r
     let r2Hat = (new bls.Fr(c).multiply(r2).add(new bls.Fr(r2Tilde))).value;
-    console.log(`r2Hat: ${r2Hat}`);
+    // console.log(`r2Hat: ${r2Hat}`);
     // 24. r3^ = c * r3 + r3~ mod r
     let r3Hat = (new bls.Fr(c).multiply(r3).add(new bls.Fr(r3Tilde))).value;
-    console.log(`r3Hat: ${r3Hat}`);
+    // console.log(`r3Hat: ${r3Hat}`);
     // 25. s^ = c * s' + s~ mod r
     let sHat = (new bls.Fr(c).multiply(sPrime).add(new bls.Fr(sTilde))).value;
-    console.log(`sHat: ${sHat}`);
+    // console.log(`sHat: ${sHat}`);
     // 26. for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
     let mHatU = [];
     for (let j = 0; j < U; j++) {
-        let mHatj = (new bls.Fr(c).multiply(msg_scalars[undisclosed[j]]).add(new bls.Fr(mTildeU[j]))).value;
+        let mHatj = new bls.Fr(c).multiply(msg_scalars[undisclosed[j]]).add(new bls.Fr(mTildeU[j])).value;
         mHatU.push(mHatj);
     }
-    console.log(`mHatU: ${mHatU}`);
+    // console.log(`mHatU: ${mHatU}`);
     // 27. proof = (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1, ..., m^_jU))
     // 28. return proof_to_octets(proof)
     return proof_to_octets(Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU);
@@ -273,14 +278,14 @@ let header = hexToBytes("11223344556677889900aabbccddeeff");
 // // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature004.json
 let signature = hexToBytes("b9c68aa75ed3510d2c3dd06d962106b888073b9468db2bde45c42ed32d3a04ffc14e0854ce219b77ce845fe7b06e200f66f64cb709e83a367586a70dc080b0fe242444b7cfd08977d74d91be64b468485774792526992181bc8b2d40a913c9bf561b2eeb0e149bfb7dc05d3607903513");
 let ph = new Uint8Array();
-let disclosed_indexes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+let disclosed_indexes = [0, 1, 2, 3, 6, 7, 8, 9];
 let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars, disclosed_indexes, gens);
-console.log(`result length: ${result.length}`);
-console.log(`expected length: ${3*48 + 5*32 + 32*(msg_scalars.length - disclosed_indexes.length)}`);
+// console.log(`result length: ${result.length}`);
+// console.log(`expected length: ${3*48 + 5*32 + 32*(msg_scalars.length - disclosed_indexes.length)}`);
 console.log("Proof");
 console.log(bytesToHex(result));
 // Create proof bundle: pk_bytes, header, ph, disclosed msgs, disclosed indexes, proof, total messages
-let disclosedMsgs = hex_msgs.filter((msg, i) => i in disclosed_indexes);
+let disclosedMsgs = hex_msgs.filter((msg, i) => disclosed_indexes.includes(i));
 let proofBundle = {
     pk: bytesToHex(pk_bytes),
     header: bytesToHex(header),
