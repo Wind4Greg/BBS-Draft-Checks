@@ -200,7 +200,7 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
         c_array.push({type: "NonNegInt", value: iR});
     }
     for (let iR of disclosed_indexes) {
-        c_array.push({type: "Scalar", value: msg_scalars[iR]});
+        c_array.push({type: "Scalar", value: messages[iR]});
     }
     c_array.push({type: "Scalar", value: domain});
     c_array.push({type: "PlainOctets", value: ph});
@@ -226,7 +226,7 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     // 26. for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
     let mHatU = [];
     for (let j = 0; j < U; j++) {
-        let mHatj = new bls.Fr(c).multiply(msg_scalars[undisclosed[j]]).add(new bls.Fr(mTildeU[j])).value;
+        let mHatj = new bls.Fr(c).multiply(messages[undisclosed[j]]).add(new bls.Fr(mTildeU[j])).value;
         mHatU.push(mHatj);
     }
     // console.log(`mHatU: ${mHatU}`);

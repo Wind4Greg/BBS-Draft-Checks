@@ -2,13 +2,15 @@
 
 Coding examples to check procedures in the [draft BBS signature scheme](https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html) (the *draft*).
 
-These examples try to be minimal in the sense of: 
+These examples try to be minimal in the sense of:
 
 1. relying on the fewest extra libraries to simplify installation;
 2. using straight forward language constructs
 3. use high level languages such as Python and JavaScript
 
 They are not examples of secure coding techniques although they are provided to help in verifying the procedures in a draft cryptographic suite.
+
+***Update***: The verification of the draft has been going quite well so I've decided to create a [BBSAllinOne.js](JavaScript/AllinOne/BBSAllinOne.js) file that only depends on [noble-bls12-381](https://github.com/paulmillr/noble-bls12-381) and [noble-hashes](https://www.npmjs.com/package/@noble/hashes) to use in demonstrations of BBS signatures. Example uses are given in [SignVerifyExample.js](JavaScript/AllinOne/SignVerifyExample.js) and [ProofGenVerifyExample.js](JavaScript/AllinOne/ProofGenVerifyExample.js).
 
 ## Key Generation
 
@@ -20,7 +22,7 @@ The *draft* contains a procedure (section 3.3.1) for generation of secret key fr
 
 ## Public Key Generation
 
-Given a secret key *Sk* produce a public key *Pk*. This is in the elliptic curve group *G2* of the *pairing*. See [BLS12-381 For The Rest Of Us](https://hackmd.io/@benjaminion/bls12-381#About-curve-BLS12-381) for an overview of pairing based elliptic curve cryptography. However, our application is a signature scheme for things like "credentials" that enhances user privacy. For JavaScript I'm using the [noble cryptography](https://paulmillr.com/noble/) libraries. These are pure JavaScript and easy to install on any platform. 
+Given a secret key *Sk* produce a public key *Pk*. This is in the elliptic curve group *G2* of the *pairing*. See [BLS12-381 For The Rest Of Us](https://hackmd.io/@benjaminion/bls12-381#About-curve-BLS12-381) for an overview of pairing based elliptic curve cryptography. However, our application is a signature scheme for things like "credentials" that enhances user privacy. For JavaScript I'm using the [noble cryptography](https://paulmillr.com/noble/) libraries. These are pure JavaScript and easy to install on any platform.
 
 The JavaScript file [BBSPubKey.js](JavaScript/BBSPubKey.js) shows that this is really easy to do with the [noble-bls12-381](https://github.com/paulmillr/noble-bls12-381) library, i.e., one line of code:
 

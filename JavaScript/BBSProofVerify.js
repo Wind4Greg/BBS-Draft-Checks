@@ -86,8 +86,7 @@ import * as bls from '@noble/bls12-381';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
-import { hash_to_scalar, messages_to_scalars, prepareGenerators, octets_to_sig } from './BBSGeneral.js';
-import { randomBytes } from '@noble/hashes/utils';
+import { hash_to_scalar, messages_to_scalars, prepareGenerators } from './BBSGeneral.js';
 
 const ciphersuite_id = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
 // prf_len = ceil(ceil(log2(r))/8),
