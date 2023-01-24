@@ -18,7 +18,7 @@ They are not examples of secure coding techniques although they are provided to 
 
 The *draft* contains a procedure (section 3.3.1) for generation of secret key from an initial octet string. See the Jupyter notebook [BBS_KeyGen.ipynb](./Python/BBS_KeyGen.ipynb) or for JavaScript see [BBSKeyGen.js](JavaScript/BBSKeyGen.js).
 
-**Status**: currently working to verify against test in draft.
+All checks pass with updated BBS+ test vectors.
 
 ## Public Key Generation
 
