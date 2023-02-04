@@ -1,6 +1,6 @@
 
 import { proofGen, proofVerify, messages_to_scalars, prepareGenerators, hexToBytes, bytesToHex } from './BBSAllinOne.js';
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 
 // Some test messages in hex string format from draft
 let hex_msgs = [
@@ -21,7 +21,7 @@ let msg_scalars = await messages_to_scalars(test_msgs); // hash to scalars
 let gens = await prepareGenerators(test_msgs.length); // Generate enough for all msgs
 
 let sk_bytes = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
-let pointPk = bls.PointG2.fromPrivateKey(sk_bytes);
+let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
 let pk_bytes = pointPk.toRawBytes(true);
 let header = hexToBytes("11223344556677889900aabbccddeeff");
 // L = 10; // Try with all 10 messages

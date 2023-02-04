@@ -82,7 +82,7 @@ Procedure:
 */
 
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
@@ -116,7 +116,7 @@ async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclos
     let {Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU} = proof_result;
     // console.log(proof_result);
     // W = octets_to_pubkey(PK)
-    let W = bls.PointG2.fromHex(PK);
+    let W = bls.G2.ProjectivePoint.fromHex(PK);
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let dom_array = [
         {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
@@ -172,18 +172,19 @@ async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclos
         return false;
     }
     // 18. if A' == Identity_G1, return INVALID
-    if (Aprime.isZero()) {
+    if (Aprime.equals(bls.G1.ProjectivePoint.ZERO)) {
         console.log("Aprime is the identity in G1");
         return false;
     }
     // 19. if e(A', W) * e(Abar, -P2) != Identity_GT, return INVALID else return VALID
     // Compute item in G2
-    let negP2 = bls.PointG2.BASE.negate();
+    let negP2 = bls.G2.ProjectivePoint.BASE.negate();
     // Compute items in GT, i.e., Fp12
     let ptGT1 = bls.pairing(Aprime, W);
     let ptGT2 = bls.pairing(Abar, negP2);
-    let result = ptGT1.multiply(ptGT2).finalExponentiate(); // See noble BLS12-381
-    return result.equals(bls.Fp12.ONE);
+    let result = bls.Fp12.mul(ptGT1, ptGT2)
+    result = bls.Fp12.finalExponentiate(result); // See noble BLS12-381
+    return bls.Fp12.eql(result, bls.Fp12.ONE);
 }
 
 
@@ -198,13 +199,13 @@ function octets_to_proof(octets, U) {
     }
     let index = 0;
     let Aprime_oct = octets.slice(0, POINT_LENGTH);
-    let Aprime = bls.PointG1.fromHex(Aprime_oct);
+    let Aprime = bls.G1.ProjectivePoint.fromHex(Aprime_oct);
     index += POINT_LENGTH;
     let Abar_oct = octets.slice(index, index + POINT_LENGTH);
-    let Abar = bls.PointG1.fromHex(Abar_oct);
+    let Abar = bls.G1.ProjectivePoint.fromHex(Abar_oct);
     index += POINT_LENGTH;
     let D_oct = octets.slice(index, index + POINT_LENGTH);
-    let D = bls.PointG1.fromHex(D_oct);
+    let D = bls.G1.ProjectivePoint.fromHex(D_oct);
     index += POINT_LENGTH;
     let c = os2ip(octets.slice(index, index + SCALAR_LENGTH));
     if (c < 0n || c >= bls.CURVE.r) {

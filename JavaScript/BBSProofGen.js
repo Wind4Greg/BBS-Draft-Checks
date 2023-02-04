@@ -87,7 +87,7 @@ Procedure:
 */
 
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
@@ -159,11 +159,11 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     // console.log(`B: ${B}`);
     // console.log(`m~U: ${mTildeU}`);
     // 11. r3 = r1 ^ -1 mod r
-    let r3 = (new bls.Fr(r1)).invert();
+    let r3 = bls.Fr.inv(bls.Fr.create(r1));
     // 12. A' = A * r1
     let Aprime = A.multiply(r1);
     // 13. Abar = A' * (-e) + B * r1
-    let negE = new bls.Fr(e).negate().value;
+    let negE = bls.Fr.neg(e);
     let Abar = Aprime.multiply(negE).add(B.multiply(r1));
     // console.log(`e: ${e}, -e: ${negE}`);
     // console.log(`Aprime: ${Aprime}`);
@@ -172,13 +172,13 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     let D = B.multiply(r1).add(generators.Q1.multiply(r2));
     // console.log(`D: ${D}`);
     // 15. s' = r2 * r3 + s mod r
-    let sPrime = new bls.Fr(r2).multiply(r3).add(new bls.Fr(s)).value;
+    let sPrime = bls.Fr.add(bls.Fr.mul(r2, r3), s);
     // console.log(`sPrime: ${sPrime}`);
     // 16. C1 = A' * e~ + Q_1 * r2~
     let C1 = Aprime.multiply(eTilde).add(generators.Q1.multiply(r2Tilde));
     // console.log(`C1: ${C1}`);
     // 17. C2 = D * (-r3~) + Q_1 * s~ + H_j1 * m~_j1 + ... + H_jU * m~_jU
-    let neg_r3Tilde = new bls.Fr(r3Tilde).negate().value;
+    let neg_r3Tilde = bls.Fr.neg(r3Tilde);
     let C2 = D.multiply(neg_r3Tilde);
     // console.log(`C2 partial 1: ${C2}`);
     C2 = C2.add(generators.Q1.multiply(sTilde));
@@ -212,21 +212,21 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     // console.log(`c: ${c}`);
     // 22. e^ = c * e + e~ mod r
     // console.log(`type c: ${typeof(c)}, e: ${typeof(e)}, eTilde: ${typeof(eTilde)}`);
-    let eHat = (new bls.Fr(c).multiply(e).add(new bls.Fr(eTilde))).value;
+    let eHat = bls.Fr.add(bls.Fr.mul(c, e), eTilde);
     // console.log(`eHat: ${eHat}`);
     // 23. r2^ = c * r2 + r2~ mod r
-    let r2Hat = (new bls.Fr(c).multiply(r2).add(new bls.Fr(r2Tilde))).value;
+    let r2Hat = bls.Fr.add(bls.Fr.mul(c, r2), r2Tilde);
     // console.log(`r2Hat: ${r2Hat}`);
     // 24. r3^ = c * r3 + r3~ mod r
-    let r3Hat = (new bls.Fr(c).multiply(r3).add(new bls.Fr(r3Tilde))).value;
+    let r3Hat = bls.Fr.add(bls.Fr.mul(c, r3), r3Tilde);
     // console.log(`r3Hat: ${r3Hat}`);
     // 25. s^ = c * s' + s~ mod r
-    let sHat = (new bls.Fr(c).multiply(sPrime).add(new bls.Fr(sTilde))).value;
+    let sHat = bls.Fr.add(bls.Fr.mul(c, sPrime), sTilde);
     // console.log(`sHat: ${sHat}`);
     // 26. for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
     let mHatU = [];
     for (let j = 0; j < U; j++) {
-        let mHatj = new bls.Fr(c).multiply(messages[undisclosed[j]]).add(new bls.Fr(mTildeU[j])).value;
+        let mHatj = bls.Fr.add(bls.Fr.mul(c, messages[undisclosed[j]]), mTildeU[j]);
         mHatU.push(mHatj);
     }
     // console.log(`mHatU: ${mHatU}`);
@@ -271,7 +271,7 @@ let msg_scalars = await messages_to_scalars(test_msgs); // hash to scalars
 let gens = await prepareGenerators(test_msgs.length); // Generate enough for all msgs
 
 let sk_bytes = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
-let pointPk = bls.PointG2.fromPrivateKey(sk_bytes);
+let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
 let pk_bytes = pointPk.toRawBytes(true);
 let header = hexToBytes("11223344556677889900aabbccddeeff");
 // L = 10; // Try with all 10 messages

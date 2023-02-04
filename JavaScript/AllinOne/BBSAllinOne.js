@@ -1,7 +1,7 @@
 /* Single file BBS signature implementation */
 
 /* Functions used in multiple BBS signature operations */
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { randomBytes } from '@noble/hashes/utils';
 
 const CIPHERSUITE_ID = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
@@ -27,23 +27,29 @@ export async function sign(SK, PK, header, messages, generators) {
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let L = messages.length;
     let dom_array = [
-        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
-        { type: "GPoint", value: generators.Q1 },
-        { type: "GPoint", value: generators.Q2 },
+        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
+        {type: "GPoint", value: generators.Q1},
+        {type: "GPoint", value: generators.Q2},
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({ type: "GPoint", value: generators.H[i] })
+        dom_array.push({type: "GPoint", value: generators.H[i]})
     }
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
-    dom_array.push({ type: "PlainOctets", value: header });
+    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
+    dom_array.push({type: "PlainOctets", value: header});
+    // console.log(dom_array);
+    // dom_for_hash = encode_for_hash(dom_array)
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
+    // let dst = new TextEncoder().encode("BLS12381G1_XMD:SHA-256_SSWU_RO_");
+    // let dst = hexToBytes("4242535f424c53313233383147315f584d443a5348412d3235365f535357555f524f5f4d41505f4d53475f544f5f5343414c41525f41535f484153485f");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
+    // console.log(`domain: ${domain}`);
     // e_s_for_hash = encode_for_hash((SK, domain, msg_1, ..., msg_L))
-    let valArray = [{ type: "Scalar", value: SK }, { type: "Scalar", value: domain }];
+    let valArray = [{type: "Scalar", value: SK}, {type: "Scalar", value: domain}];
     for (let i = 0; i < L; i++) {
-        valArray.push({ type: "Scalar", value: messages[i] });
+        valArray.push({type: "Scalar", value: messages[i]});
     }
+    // console.log(valArray);
     let e_s_for_hash = encode_to_hash(valArray);
     let [e, s] = await hash_to_scalar(e_s_for_hash, 2, dst);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
@@ -54,28 +60,35 @@ export async function sign(SK, PK, header, messages, generators) {
         B = B.add(generators.H[i].multiply(messages[i]));
     }
     // A = B * (1 / (SK + e))   # For this we need to work in Fr which noble-BLS12-381 provides
-    let denom = new bls.Fr(SK).add(new bls.Fr(e));
-    let num = denom.invert().value;
+    let denom = bls.Fr.add(bls.Fr.create(SK), bls.Fr.create(e));
+    let num = bls.Fr.inv(denom);
     let A = B.multiply(num);
+    // signature_octets = signature_to_octets(A, e, s)
+    console.log("Computed A:")
+    console.log(bytesToHex(A.toRawBytes(true)));
+    console.log("Computed e:");
+    console.log(e.toString(16));
+    console.log("Computed s:");
+    console.log(s.toString(16));
     return signature_to_octets(A, e, s);
 }
 
 export async function verify(PK, signature, header, messages, generators) {
-    let { A, e, s } = octets_to_sig(signature); // Get curve point and scalars
+    let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
     // W = octets_to_pubkey(PK)
-    let W = bls.PointG2.fromHex(PK);
+    let W = bls.G2.ProjectivePoint.fromHex(PK);
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let L = messages.length;
     let dom_array = [
-        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
-        { type: "GPoint", value: generators.Q1 },
-        { type: "GPoint", value: generators.Q2 },
+        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
+        {type: "GPoint", value: generators.Q1},
+        {type: "GPoint", value: generators.Q2},
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({ type: "GPoint", value: generators.H[i] })
+        dom_array.push({type: "GPoint", value: generators.H[i]})
     }
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
-    dom_array.push({ type: "PlainOctets", value: header });
+    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
+    dom_array.push({type: "PlainOctets", value: header});
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
@@ -88,13 +101,14 @@ export async function verify(PK, signature, header, messages, generators) {
     }
     //  if e(A, W + P2 * e) * e(B, -P2) != Identity_GT, return INVALID otherwise return VALID
     // Compute items in G2
-    let temp1G2 = W.add(bls.PointG2.BASE.multiply(e));
-    let temp2G2 = bls.PointG2.BASE.negate();
+    let temp1G2 = W.add(bls.G2.ProjectivePoint.BASE.multiply(e));
+    let temp2G2 = bls.G2.ProjectivePoint.BASE.negate();
     // Compute items in GT, i.e., Fp12
     let ptGT1 = bls.pairing(A, temp1G2);
     let ptGT2 = bls.pairing(B, temp2G2);
-    let result = ptGT1.multiply(ptGT2).finalExponentiate(); // See noble BLS12-381
-    return result.equals(bls.Fp12.ONE);
+    let result = bls.Fp12.mul(ptGT1, ptGT2)
+    result = bls.Fp12.finalExponentiate(result); // See noble BLS12-381
+    return bls.Fp12.eql(result, bls.Fp12.ONE);
 }
 
 export async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, generators) {
@@ -104,14 +118,17 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
     let U = L - R;
     let allIndexes = [];
     for (let i = 0; i < L; i++) {
-        allIndexes[i] = i;
+        allIndexes[i] = i; 
     }
     let tempSet = new Set(allIndexes);
     for (let dis of disclosed_indexes) {
         tempSet.delete(dis);
     }
     let undisclosed = Array.from(tempSet); // Contains all the undisclosed indexes
-    let { A, e, s } = octets_to_sig(signature); // Get curve point and scalars
+    // console.log(disclosed_indexes);
+    // console.log(undisclosed);
+
+    let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
     // check that we have enough generators for the messages
     if (messages.length > generators.H.length) {
         throw new TypeError('Sign: not enough generators! string');
@@ -119,15 +136,15 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
     // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let dom_array = [
-        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
-        { type: "GPoint", value: generators.Q1 },
-        { type: "GPoint", value: generators.Q2 },
+        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
+        {type: "GPoint", value: generators.Q1},
+        {type: "GPoint", value: generators.Q2},
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({ type: "GPoint", value: generators.H[i] })
+        dom_array.push({type: "GPoint", value: generators.H[i]})
     }
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
-    dom_array.push({ type: "PlainOctets", value: header });
+    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
+    dom_array.push({type: "PlainOctets", value: header});
     // dom_for_hash = encode_for_hash(dom_array)
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
@@ -144,60 +161,81 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
     // 9.  (m~_j1, ..., m~_jU) = hash_to_scalar(PRF(prf_len), U)
     let [r1, r2, eTilde, r2Tilde, r3Tilde, sTilde] = await hash_to_scalar(randomBytes(PRF_LEN), 6, dst);
     let mTildeU = await hash_to_scalar(randomBytes(PRF_LEN), U, dst);
+    // console.log(`r1: ${r1}`);
+    // console.log(`B: ${B}`);
+    // console.log(`m~U: ${mTildeU}`);
     // 11. r3 = r1 ^ -1 mod r
-    let r3 = (new bls.Fr(r1)).invert();
+    let r3 = bls.Fr.inv(bls.Fr.create(r1));
     // 12. A' = A * r1
     let Aprime = A.multiply(r1);
     // 13. Abar = A' * (-e) + B * r1
-    let negE = new bls.Fr(e).negate().value;
+    let negE = bls.Fr.neg(e);
     let Abar = Aprime.multiply(negE).add(B.multiply(r1));
+    // console.log(`e: ${e}, -e: ${negE}`);
+    // console.log(`Aprime: ${Aprime}`);
+    // console.log(`Abar: ${Abar}`);
     // 14. D = B * r1 + Q_1 * r2
     let D = B.multiply(r1).add(generators.Q1.multiply(r2));
+    // console.log(`D: ${D}`);
     // 15. s' = r2 * r3 + s mod r
-    let sPrime = new bls.Fr(r2).multiply(r3).add(new bls.Fr(s)).value;
+    let sPrime = bls.Fr.add(bls.Fr.mul(r2, r3), s);
+    // console.log(`sPrime: ${sPrime}`);
     // 16. C1 = A' * e~ + Q_1 * r2~
     let C1 = Aprime.multiply(eTilde).add(generators.Q1.multiply(r2Tilde));
+    // console.log(`C1: ${C1}`);
     // 17. C2 = D * (-r3~) + Q_1 * s~ + H_j1 * m~_j1 + ... + H_jU * m~_jU
-    let neg_r3Tilde = new bls.Fr(r3Tilde).negate().value;
+    let neg_r3Tilde = bls.Fr.neg(r3Tilde);
     let C2 = D.multiply(neg_r3Tilde);
+    // console.log(`C2 partial 1: ${C2}`);
     C2 = C2.add(generators.Q1.multiply(sTilde));
+    // console.log(`C2 partial 2: ${C2}`);
+    // console.log(`undisclosed: ${undisclosed}`);
     for (let j = 0; j < U; j++) {
         C2 = C2.add(generators.H[undisclosed[j]].multiply(mTildeU[j]));
+        // console.log(`H[undisclosed[j]]: ${generators.H[undisclosed[j]]}, mTildeU[j]: ${mTildeU[j]}`);
+        // console.log(`j = ${j}, C2 = ${C2}`);
     }
+    // console.log(`C2: ${C2}`);
     // 18. c_array = (A', Abar, D, C1, C2, R, i1, ..., iR, msg_i1, ..., msg_iR, domain, ph)
-    let c_array = [{ type: "GPoint", value: Aprime }, { type: "GPoint", value: Abar },
-    { type: "GPoint", value: D }, { type: "GPoint", value: C1 },
-    { type: "GPoint", value: C2 }, { type: "NonNegInt", value: R }
+    // // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
+    let c_array = [{type: "GPoint", value: Aprime}, {type: "GPoint", value: Abar},
+        {type: "GPoint", value: D}, {type: "GPoint", value: C1},
+        {type: "GPoint", value: C2}, {type: "NonNegInt", value: R}
     ];
     for (let iR of disclosed_indexes) {
-        c_array.push({ type: "NonNegInt", value: iR });
+        c_array.push({type: "NonNegInt", value: iR});
     }
     for (let iR of disclosed_indexes) {
-        c_array.push({ type: "Scalar", value: messages[iR] });
+        c_array.push({type: "Scalar", value: messages[iR]});
     }
-    c_array.push({ type: "Scalar", value: domain });
-    c_array.push({ type: "PlainOctets", value: ph });
+    c_array.push({type: "Scalar", value: domain});
+    c_array.push({type: "PlainOctets", value: ph});
     // 19. c_for_hash = encode_for_hash(c_array)
     // 20. if c_for_hash is INVALID, return INVALID
     let c_for_hash = encode_to_hash(c_array);
     // 21. c = hash_to_scalar(c_for_hash, 1)
     let [c] = await hash_to_scalar(c_for_hash, 1, dst);
+    // console.log(`c: ${c}`);
     // 22. e^ = c * e + e~ mod r
     // console.log(`type c: ${typeof(c)}, e: ${typeof(e)}, eTilde: ${typeof(eTilde)}`);
-    let eHat = (new bls.Fr(c).multiply(e).add(new bls.Fr(eTilde))).value;
+    let eHat = bls.Fr.add(bls.Fr.mul(c, e), eTilde);
     // console.log(`eHat: ${eHat}`);
     // 23. r2^ = c * r2 + r2~ mod r
-    let r2Hat = (new bls.Fr(c).multiply(r2).add(new bls.Fr(r2Tilde))).value;
+    let r2Hat = bls.Fr.add(bls.Fr.mul(c, r2), r2Tilde);
+    // console.log(`r2Hat: ${r2Hat}`);
     // 24. r3^ = c * r3 + r3~ mod r
-    let r3Hat = (new bls.Fr(c).multiply(r3).add(new bls.Fr(r3Tilde))).value;
+    let r3Hat = bls.Fr.add(bls.Fr.mul(c, r3), r3Tilde);
+    // console.log(`r3Hat: ${r3Hat}`);
     // 25. s^ = c * s' + s~ mod r
-    let sHat = (new bls.Fr(c).multiply(sPrime).add(new bls.Fr(sTilde))).value;
+    let sHat = bls.Fr.add(bls.Fr.mul(c, sPrime), sTilde);
+    // console.log(`sHat: ${sHat}`);
     // 26. for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
     let mHatU = [];
     for (let j = 0; j < U; j++) {
-        let mHatj = new bls.Fr(c).multiply(messages[undisclosed[j]]).add(new bls.Fr(mTildeU[j])).value;
+        let mHatj = bls.Fr.add(bls.Fr.mul(c, messages[undisclosed[j]]), mTildeU[j]);
         mHatU.push(mHatj);
     }
+    // console.log(`mHatU: ${mHatU}`);
     // 27. proof = (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1, ..., m^_jU))
     // 28. return proof_to_octets(proof)
     return proof_to_octets(Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU);
@@ -208,61 +246,69 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
     let U = L - R;
     let allIndexes = [];
     for (let i = 0; i < L; i++) {
-        allIndexes[i] = i;
+        allIndexes[i] = i; 
     }
     let tempSet = new Set(allIndexes);
     for (let dis of disclosed_indexes) {
         tempSet.delete(dis);
     }
     let undisclosed = Array.from(tempSet); // Contains all the undisclosed indexes
+    // console.log(disclosed_indexes);
+    // console.log(undisclosed);
     // (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1,...,m^_jU)) = proof_result
     let proof_result = octets_to_proof(proof, U);
-    let { Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU } = proof_result;
+    let {Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU} = proof_result;
+    // console.log(proof_result);
     // W = octets_to_pubkey(PK)
-    let W = bls.PointG2.fromHex(PK);
+    let W = bls.G2.ProjectivePoint.fromHex(PK);
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let dom_array = [
-        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
-        { type: "GPoint", value: generators.Q1 },
-        { type: "GPoint", value: generators.Q2 },
+        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
+        {type: "GPoint", value: generators.Q1},
+        {type: "GPoint", value: generators.Q2},
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({ type: "GPoint", value: generators.H[i] })
+        dom_array.push({type: "GPoint", value: generators.H[i]})
     }
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
-    dom_array.push({ type: "PlainOctets", value: header });
+    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
+    dom_array.push({type: "PlainOctets", value: header});
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
+    // console.log(`domain: ${domain}`);
     // C1 = (Abar - D) * c + A' * e^ + Q_1 * r2^
     let C1 = Abar.subtract(D).multiply(c).add(Aprime.multiply(eHat)).add(generators.Q1.multiply(r2Hat));
+    // console.log(`C1: ${C1}`);
     // T = P1 + Q_2 * domain + H_i1 * msg_i1 + ... + H_iR * msg_iR
     let T = generators.P1.add(generators.Q2.multiply(domain));
-    for (let i = 0; i < R; i++) {
+    for (let i = 0; i < R; i ++) {
         T = T.add(generators.H[disclosed_indexes[i]].multiply(disclosed_messages[i]));
     }
+    // console.log(`T: ${T}`);
     // C2 = T * c - D * r3^ + Q_1 * s^ + H_j1 * m^_j1 + ... + H_jU * m^_jU
     let C2 = T.multiply(c).subtract(D.multiply(r3Hat)).add(generators.Q1.multiply(sHat));
     for (let j = 0; j < U; j++) {
+        // console.log(`j = ${j}, undisclosed[j]: ${undisclosed[j]}`);
         C2 = C2.add(generators.H[undisclosed[j]].multiply(mHatU[j]));
     }
+    // console.log(`C2: ${C2}`);
     // 13. cv_array = (A', Abar, D, C1, C2, R, i1, ..., iR, msg_i1, ..., msg_iR, domain, ph)
     // 14. cv_for_hash = encode_for_hash(cv_array)
     // 15. if cv_for_hash is INVALID, return INVALID
     // 16. cv = hash_to_scalar(cv_for_hash, 1)
     // 17. if c != cv, return INVALID
-    let cv_array = [{ type: "GPoint", value: Aprime }, { type: "GPoint", value: Abar },
-    { type: "GPoint", value: D }, { type: "GPoint", value: C1 }, { type: "GPoint", value: C2 },
-    { type: "NonNegInt", value: R },
-    ];
+    let cv_array = [{type: "GPoint", value: Aprime}, {type: "GPoint", value: Abar},
+        {type: "GPoint", value: D}, {type: "GPoint", value: C1}, {type: "GPoint", value: C2},
+        {type: "NonNegInt", value: R},
+        ];
     for (let index of disclosed_indexes) {
-        cv_array.push({ type: "NonNegInt", value: index });
+        cv_array.push({type: "NonNegInt", value: index});
     }
     for (let msg of disclosed_messages) {
-        cv_array.push({ type: "Scalar", value: msg });
+        cv_array.push({type: "Scalar", value: msg});
     }
-    cv_array.push({ type: "Scalar", value: domain });
-    cv_array.push({ type: "PlainOctets", value: ph });
+    cv_array.push({type: "Scalar", value: domain});
+    cv_array.push({type: "PlainOctets", value: ph});
     let cv_for_hash = encode_to_hash(cv_array);
     let [cv] = await hash_to_scalar(cv_for_hash, 1, dst);
     if (c !== cv) {
@@ -270,23 +316,20 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
         return false;
     }
     // 18. if A' == Identity_G1, return INVALID
-    if (Aprime.isZero()) {
-        // console.log("Aprime is the identity in G1");
+    if (Aprime.equals(bls.G1.ProjectivePoint.ZERO)) {
+        console.log("Aprime is the identity in G1");
         return false;
     }
     // 19. if e(A', W) * e(Abar, -P2) != Identity_GT, return INVALID else return VALID
     // Compute item in G2
-    let negP2 = bls.PointG2.BASE.negate();
+    let negP2 = bls.G2.ProjectivePoint.BASE.negate();
     // Compute items in GT, i.e., Fp12
     let ptGT1 = bls.pairing(Aprime, W);
     let ptGT2 = bls.pairing(Abar, negP2);
-    let result = ptGT1.multiply(ptGT2).finalExponentiate(); // See noble BLS12-381
-    return result.equals(bls.Fp12.ONE);
+    let result = bls.Fp12.mul(ptGT1, ptGT2)
+    result = bls.Fp12.finalExponentiate(result); // See noble BLS12-381
+    return bls.Fp12.eql(result, bls.Fp12.ONE);
 }
-
-
-
-
 
 
 // General BBS related constants and functions
@@ -295,19 +338,19 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
 
 function octets_to_proof(octets, U) {
     // recover (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1,...,m^_jU)) from octets
-    let expected_length = 3 * POINT_LENGTH + 5 * SCALAR_LENGTH + U * SCALAR_LENGTH;
+    let expected_length = 3*POINT_LENGTH + 5*SCALAR_LENGTH + U*SCALAR_LENGTH;
     if (octets.length !== expected_length) {
         throw new TypeError('octets_to_proof: bad proof length');
     }
     let index = 0;
     let Aprime_oct = octets.slice(0, POINT_LENGTH);
-    let Aprime = bls.PointG1.fromHex(Aprime_oct);
+    let Aprime = bls.G1.ProjectivePoint.fromHex(Aprime_oct);
     index += POINT_LENGTH;
     let Abar_oct = octets.slice(index, index + POINT_LENGTH);
-    let Abar = bls.PointG1.fromHex(Abar_oct);
+    let Abar = bls.G1.ProjectivePoint.fromHex(Abar_oct);
     index += POINT_LENGTH;
     let D_oct = octets.slice(index, index + POINT_LENGTH);
-    let D = bls.PointG1.fromHex(D_oct);
+    let D = bls.G1.ProjectivePoint.fromHex(D_oct);
     index += POINT_LENGTH;
     let c = os2ip(octets.slice(index, index + SCALAR_LENGTH));
     if (c < 0n || c >= bls.CURVE.r) {
@@ -343,7 +386,7 @@ function octets_to_proof(octets, U) {
         mHatU.push(mHatj);
         index += SCALAR_LENGTH;
     }
-    return { Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU };
+    return {Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU};
 }
 
 function proof_to_octets(Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU) {
@@ -449,7 +492,7 @@ export async function messages_to_scalars(messages) {
 
 export async function prepareGenerators(L) {
     // Compute P1, Q1, Q2, H1, ..., HL
-    let generators = { H: [] };
+    let generators = {H: []};
     let te = new TextEncoder(); // Used to convert string to uint8Array, utf8 encoding
     const seed_dst = te.encode(CIPHERSUITE_ID + "SIG_GENERATOR_SEED_");
     const gen_dst_string = CIPHERSUITE_ID + "SIG_GENERATOR_DST_";
@@ -460,7 +503,7 @@ export async function prepareGenerators(L) {
     for (let i = 0; i < count; i++) {
         v = await bls.utils.expandMessageXMD(concat(v, i2osp(n, 4)), seed_dst, SEED_LEN);
         n = n + 1;
-        let candidate = await bls.PointG1.hashToCurve(v, { DST: gen_dst_string });
+        let candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string });
         if (i === 0) {
             generators.Q1 = candidate;
         } else if (i === 1) {
@@ -473,7 +516,7 @@ export async function prepareGenerators(L) {
     const gen_seed_P1 = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
     v = await bls.utils.expandMessageXMD(gen_seed_P1, seed_dst, SEED_LEN);
     v = await bls.utils.expandMessageXMD(concat(v, i2osp(1, 4)), seed_dst, SEED_LEN);
-    let candidate = await bls.PointG1.hashToCurve(v, { DST: gen_dst_string });
+    let candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string });
     generators.P1 = candidate;
     return generators;
 }
@@ -483,7 +526,7 @@ function octets_to_sig(sig_octets) {
         throw new TypeError('octets_to_sig: bad signature length');
     }
     let A_oct = sig_octets.slice(0, 48);
-    let A = bls.PointG1.fromHex(A_oct);
+    let A = bls.G1.ProjectivePoint.fromHex(A_oct);
     let e = os2ip(sig_octets.slice(48, 80));
     if (e < 0n || e >= bls.CURVE.r) {
         throw new TypeError('octets_to_sig: bad e value');
@@ -492,7 +535,7 @@ function octets_to_sig(sig_octets) {
     if (s < 0n || s >= bls.CURVE.r) {
         throw new TypeError('octets_to_sig: bad s value');
     }
-    return { A, e, s };
+    return {A, e, s};
 }
 
 // Some necessary utilities some borrowed others hacked

@@ -95,7 +95,7 @@ async function verify(PK, signature, header, messages, generators) {
     // Compute items in GT, i.e., Fp12
     let ptGT1 = bls.pairing(A, temp1G2);
     let ptGT2 = bls.pairing(B, temp2G2);
-    let result = bls.Fp12.mul(ptGT1,ptGT2)
+    let result = bls.Fp12.mul(ptGT1, ptGT2)
     result = bls.Fp12.finalExponentiate(result); // See noble BLS12-381
     return bls.Fp12.eql(result, bls.Fp12.ONE);
 }

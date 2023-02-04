@@ -1,6 +1,6 @@
 
 import { sign, verify, messages_to_scalars, prepareGenerators, os2ip, hexToBytes, bytesToHex } from './BBSAllinOne.js';
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 
 let test_msgs = [
     hexToBytes("9872ad089e452c7b6e283dfac2a80d58e8d0ff71cc4d5e310a1debdda4a45f02"),
@@ -21,7 +21,7 @@ let gens = await prepareGenerators(test_msgs.length); // Generate enough for all
 
 // Prepare private and public keys
 let sk_bytes = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
-let pointPk = bls.PointG2.fromPrivateKey(sk_bytes);
+let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
 let pk_bytes = pointPk.toRawBytes(true);
 let sk_scalar = os2ip(sk_bytes);
 
