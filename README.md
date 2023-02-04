@@ -39,7 +39,7 @@ let pointSk = bls.PointG2.fromPrivateKey(sk); // Also properly formats curve poi
 
 A key intermediate step needed below to create the generators in the group G1 is *hashing to an elliptic curve*. This is being standardized in [irtf draft: hash to curve](https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-16.html). The *noble* library (referenced above) provides this capability and runs tests against the test vectors from the draft.
 
-If you want to see a simple usage and test vector verification see the file [Hash2CurveCheckSimple.js](JavaScript/Hash2CurveCheckSimple.js). If you want to see every intermediate step checked against the full test vectors from the draft see the file [Hash2CurveCheck.js](JavaScript/Hash2CurveCheck.js).
+If you want to see a simple usage and test vector verification see the file [Hash2CurveCheckSimple.js](JavaScript/Hash2CurveCheckSimple.js).
 
 ## Creating Generators
 

@@ -78,7 +78,7 @@ Test vectors:
 
 */
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { bytesToHex } from '@noble/hashes/utils';
 import {i2osp, concat} from './myUtils.js';
 
@@ -125,7 +125,7 @@ for (let i = 0; i < count; i++) {
     // console.log(bytesToHex(v));
     n = n + 1;
     // candidate = hash_to_curve_g1(v, generator_dst)
-    let candidate = await bls.PointG1.hashToCurve(v, {DST: gen_dst_string});
+    let candidate = await bls.hashToCurve.G1.hashToCurve(v, {DST: gen_dst_string});
     console.log("Candidate compressed generator point:");
     console.log(bytesToHex(candidate.toRawBytes(true))); // true for compressed point
 }
