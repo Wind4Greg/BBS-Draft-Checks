@@ -33,7 +33,7 @@ dst     = QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_
 Test vectors moved to code below. Everything is **verifying**.
 */
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 
 let te = new TextEncoder(); //  to go from string to uint8Array
 let utf8decoder = new TextDecoder(); // to go from uint8Array to string
@@ -62,12 +62,14 @@ const testVectors = [
 for (let test of testVectors) {
     console.log(`Test message: ${utf8decoder.decode(test.msg)}`);
     console.log("Computed P:")
-    const pCalc = await bls.PointG1.hashToCurve(test.msg, {
+    console.log(`type: ${typeof bls.hashToCurve.G1.hashToCurve}`);
+    const pCalc = await bls.hashToCurve.G1.hashToCurve(test.msg, {
         DST: 'QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_',
     });
     const pCalcAff = pCalc.toAffine();
-    console.log(pCalcAff[0].value);
-    console.log(pCalcAff[1].value);
+    console.log(pCalcAff);
+    console.log(pCalcAff.x);
+    console.log(pCalcAff.y)
     console.log("P expected:");
     console.log(test.Px);
     console.log(test.Py);

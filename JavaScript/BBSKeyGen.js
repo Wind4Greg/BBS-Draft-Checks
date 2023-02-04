@@ -29,7 +29,8 @@ Test vector for keygen from GitHub:
 }
 */
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
+import { mod } from '@noble/curves/abstract/modular';
 import { extract, expand } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
@@ -99,7 +100,7 @@ let okm = expand(sha256, prk, concat(ikm_key_info, i2osp(L, 2)), L);
 console.log("OKM:");
 console.log(bytesToHex(okm));
 // SK = OS2IP(OKM) mod r
-let sk = bls.utils.mod(os2ip(okm), r);
+let sk = mod(os2ip(okm), r);
 console.log("SK as integer:");
 console.log(sk);
 console.log("SK as hex bytes:");

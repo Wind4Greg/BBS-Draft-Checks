@@ -11,7 +11,7 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "@noble/bls12-381": "^1.4.0",
+    "@noble/curves": "^0.6.2",
     "@noble/hashes": "^1.1.4"
   }
 }

@@ -33,8 +33,8 @@ dst     = QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_
 Test vectors moved to code below. Everything is **verifying**.
 */
 
-import * as bls from '@noble/bls12-381';
-import { map_to_curve_simple_swu_3mod4, Fp, isogenyMapG1 } from '@noble/bls12-381/math';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
+import { hash_to_field } from '@noble/curves/abstract/hash-to-curve';
 import { sha256 } from '@noble/hashes/sha256';
 
 let te = new TextEncoder(); //  to go from string to uint8Array
@@ -89,29 +89,32 @@ const options = {
     DST: "QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_",
     // p: the characteristic of F
     //    where F is a finite field of characteristic p and order q = p^m
-    p: bls.CURVE.P,
+    p: bls.CURVE.Fp.ORDER,
     // m: the extension degree of F, m >= 1
     //     where F is a finite field of characteristic p and order q = p^m
     m: 1,
     // k: the target security level for the suite in bits
     k: 128,
-    expand: true,
+    expand: 'xmd',
     hash: sha256,
 };
 
-
+console.log(`type: ${typeof bls.CURVE.G1.mapToCurve}`);
 for (let test of testVectors) {
     console.log(`Test message: ${utf8decoder.decode(test.msg)}`);
-    let u = await bls.utils.hashToField(test.msg, 2, options);
+    // let u = await bls.utils.hashToField(test.msg, 2, options);
+    let u = await hash_to_field(test.msg, 2, options);
     console.log("Computed hash to field u0, u1:")
     console.log(u[0][0]);
     console.log(u[1][0]);
     console.log("Expected u0, u1:");
     console.log(test.u0);
     console.log(test.u1);
-    let [x0, y0] = map_to_curve_simple_swu_3mod4(new Fp(u[0][0])); // Q0 on iso curve
-    let [x1, y1] = map_to_curve_simple_swu_3mod4(new Fp(u[1][0])); // Q1 on iso curve
-    const [q0x, q0y] = isogenyMapG1(x0, x1);
+    // let [x0, y0] = map_to_curve_simple_swu_3mod4(new Fp(u[0][0])); // Q0 on iso curve
+    // let [x1, y1] = map_to_curve_simple_swu_3mod4(new Fp(u[1][0])); // Q1 on iso curve
+    // const [q0x, q0y] = isogenyMapG1(x0, x1);
+    console.log(u);
+    console.log( bls.CURVE.G1.mapToCurve(u[0]));
     console.log("Computed Q0:");
     console.log(q0x.value);
     console.log(q0y.value);
