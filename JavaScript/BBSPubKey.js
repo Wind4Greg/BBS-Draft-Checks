@@ -33,7 +33,7 @@ Test vector for keygen from GitHub:
 
 */
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import {bytesToHex, hexToBytes } from '@noble/hashes/utils';
 
 // let sk = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
@@ -43,7 +43,8 @@ console.log(sk);
 
 // The following function performs the multiplication but also check for valid (within range) sk and
 // deals with conversion from bytes to bigInt and such...
-let pointSk = bls.PointG2.fromPrivateKey(sk);
+console.log(bls.G2);
+let pointSk = bls.G2.ProjectivePoint.fromPrivateKey(sk)
 let pointSkHex = bytesToHex(pointSk.toRawBytes(true));
 let test1 = "aaff983278257afc45fa9d44d156c454d716fb1a250dfed132d65b2009331f618c623c14efa16245f50cc92e60334051087f1ae92669b89690f5feb92e91568f95a8e286d110b011e9ac9923fd871238f57d1295395771331ff6edee43e4ccc6";
 console.log(`First test pass: ${test1 == pointSkHex}, pubkey1:\n`); // Checks

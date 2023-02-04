@@ -75,7 +75,7 @@ Procedure:
 
 */
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { i2osp, os2ip, concat } from './myUtils.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 

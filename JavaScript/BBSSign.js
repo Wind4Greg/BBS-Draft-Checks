@@ -47,7 +47,7 @@ Procedure:
 */
 
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
@@ -104,8 +104,8 @@ async function sign(SK, PK, header, messages, generators) {
         B = B.add(generators.H[i].multiply(messages[i]));
     }
     // A = B * (1 / (SK + e))   # For this we need to work in Fr which noble-BLS12-381 provides
-    let denom = new bls.Fr(SK).add(new bls.Fr(e));
-    let num = denom.invert().value;
+    let denom = bls.Fr.add(bls.Fr.create(SK), bls.Fr.create(e));
+    let num = bls.Fr.inv(denom);
     let A = B.multiply(num);
     // signature_octets = signature_to_octets(A, e, s)
     console.log("Computed A:")
@@ -144,7 +144,7 @@ let L = 1;
 let gens = await prepareGenerators(test_msgs.length); // Generate enough for alls
 // console.log(gens);
 let sk_bytes = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
-let pointPk = bls.PointG2.fromPrivateKey(sk_bytes);
+let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
 let pk_bytes = pointPk.toRawBytes(true);
 let sk_scalar = os2ip(sk_bytes);
 // console.log(pk_bytes.byteLength);
@@ -164,10 +164,3 @@ console.log(resultString);
 // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature004.json
 expected = "b9c68aa75ed3510d2c3dd06d962106b888073b9468db2bde45c42ed32d3a04ffc14e0854ce219b77ce845fe7b06e200f66f64cb709e83a367586a70dc080b0fe242444b7cfd08977d74d91be64b468485774792526992181bc8b2d40a913c9bf561b2eeb0e149bfb7dc05d3607903513";
 console.log(`verified: ${resultString === expected}`);
-// Test arithmetic in Fr
-// let num1 = new bls.Fr(3n);
-// let num2 = num1.add(new bls.Fr(20n));
-// let num3 = num2.invert();
-// console.log(num1, num2, num3, num3.multiply(num2));
-// let dst = hexToBytes("4242535f424c53313233383147315f584d443a5348412d3235365f535357555f524f5f4d41505f4d53475f544f5f5343414c41525f41535f484153485f");
-// console.log(new TextDecoder().decode(dst));

@@ -54,7 +54,7 @@ Procedure:
 */
 
 
-import * as bls from '@noble/bls12-381';
+import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { hexToBytes } from '@noble/hashes/utils';
 import { os2ip} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
@@ -65,7 +65,7 @@ const ciphersuite_id = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
 async function verify(PK, signature, header, messages, generators) {
     let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
     // W = octets_to_pubkey(PK)
-    let W = bls.PointG2.fromHex(PK);
+    let W = bls.G2.ProjectivePoint.fromHex(PK);
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let L = messages.length;
     let dom_array = [
@@ -90,13 +90,14 @@ async function verify(PK, signature, header, messages, generators) {
     }
     //  if e(A, W + P2 * e) * e(B, -P2) != Identity_GT, return INVALID otherwise return VALID
     // Compute items in G2
-    let temp1G2 = W.add(bls.PointG2.BASE.multiply(e));
-    let temp2G2 = bls.PointG2.BASE.negate();
+    let temp1G2 = W.add(bls.G2.ProjectivePoint.BASE.multiply(e));
+    let temp2G2 = bls.G2.ProjectivePoint.BASE.negate();
     // Compute items in GT, i.e., Fp12
     let ptGT1 = bls.pairing(A, temp1G2);
     let ptGT2 = bls.pairing(B, temp2G2);
-    let result = ptGT1.multiply(ptGT2).finalExponentiate(); // See noble BLS12-381
-    return result.equals(bls.Fp12.ONE);
+    let result = bls.Fp12.mul(ptGT1,ptGT2)
+    result = bls.Fp12.finalExponentiate(result); // See noble BLS12-381
+    return bls.Fp12.eql(result, bls.Fp12.ONE);
 }
 
 
@@ -119,7 +120,7 @@ let L = 1;
 let gens = await prepareGenerators(test_msgs.length); // Generate enough for alls
 // // console.log(gens);
 let sk_bytes = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
-let pointPk = bls.PointG2.fromPrivateKey(sk_bytes);
+let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
 let pk_bytes = pointPk.toRawBytes(true);
 let header = hexToBytes("11223344556677889900aabbccddeeff");
 // // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature001.json
