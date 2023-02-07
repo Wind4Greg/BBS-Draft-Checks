@@ -270,13 +270,13 @@ let test_msgs = hex_msgs.map(hex => hexToBytes(hex)); // Convert to byte array
 let msg_scalars = await messages_to_scalars(test_msgs); // hash to scalars
 let gens = await prepareGenerators(test_msgs.length); // Generate enough for all msgs
 
-let sk_bytes = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
+let sk_bytes = hexToBytes("4a39afffd624d69e81808b2e84385cc80bf86adadf764e030caa46c231f2a8d7");
 let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
 let pk_bytes = pointPk.toRawBytes(true);
 let header = hexToBytes("11223344556677889900aabbccddeeff");
 // L = 10; // Try with all 10 messages
 // // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature004.json
-let signature = hexToBytes("b9c68aa75ed3510d2c3dd06d962106b888073b9468db2bde45c42ed32d3a04ffc14e0854ce219b77ce845fe7b06e200f66f64cb709e83a367586a70dc080b0fe242444b7cfd08977d74d91be64b468485774792526992181bc8b2d40a913c9bf561b2eeb0e149bfb7dc05d3607903513");
+let signature = hexToBytes("b13ae29b49e313b1c0983056e80cfb8d84a81985ca7488557aaf9b923f1e67994cab0e5ab05c75ffcf3fde1c23207ce5218dcfec42e9cc0063ff488100f89ba08296ced4923052e597279e1f775b157c55ed6b32ba777c3eec754bda4ab096e4147f2587248ba47b22226aee2aeafd85");
 let ph = new Uint8Array();
 let disclosed_indexes = [0, 1, 2, 3, 6, 7, 8, 9];
 let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars, disclosed_indexes, gens);

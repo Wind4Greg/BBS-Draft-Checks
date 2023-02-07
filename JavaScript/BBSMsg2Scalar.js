@@ -89,6 +89,7 @@ async function hash_to_scalar(msg_octets, count, dst) {
     let have_scalars = false;
     let scalars = [];
     while (!have_scalars) {
+        scalars = [];
         let msg_prime = concat(msg_octets, concat(i2osp(t, 1), i2osp(count, 4)));
         let uniform_bytes = await bls.utils.expandMessageXMD(msg_prime, dst, len_in_bytes);
         have_scalars = true;
@@ -122,25 +123,22 @@ let test_msgs = [
 ];
 
 const expResult = [ // Expected results from the draft
-    0x360097633e394c22601426bd9f8d5b95f1c64f89689deee230e817925dee4724n,
-    0x1e68fedccc3d68236c7e4ccb508ebb3da5d5de1864eac0a0f683de22752e6d28n,
-    0x4d20cb09c2ac1e1c572e83f355b90ea996c7a6ab98a03a98098c1abeb8c7a195n,
-    0x038f1892656f7753eb2be1ab3679dd0d0331fb5e7be0f72550dbe22b0f36df02n,
-    0x144cb3d17379b746217a93910a8ca07ca7248be3d1972b562010a4e09a27b7f3n,
-    0x5da7360f11d5133c6ed6e54c1a1fd230a2c9256d5b6be0b41219808bfc964d28n,
-    0x100e944c0a82da79b062a9cc2b014d16b345b4e4624e7408106fe282da0635ccn,
-    0x2004000723ef8997256f5f2a86cbef353c3034ab751092033fa0c0a844d639afn,
-    0x68a1f58bb5aaa3bc89fba6c40ccd761879fdadf336565cef9812ed5dba5d56can,
-    0x1aefbeb8e206723a37fc2e7f8eded8227d960bed44b7089fec0d7e6da93e5d38n
+0x622c851734b4c0e123583e8b3d889d01908fcf234a9b72ed56ee2bd81c3f89e3n,
+0x1a3a33874bbb213c4f364c0cd0cb6e2385e2f3c82a73603f4f0fde0e966c0d86n,
+0x4d04c0f1992243dd6a6b9916425e8d921b42e00e366dbbbe73e7089b8147ed82n,
+0x075cbc093111b82bbd346358c2ccc96ff6227ae4357705aa48f4988262d5a951n,
+0x24513fb9a0726efca9436535f4a436437705f59aaf9b677625b97bf4b99209b3n,
+0x36c148fc8169b3f353380a71c0403b8ade704158279a675a753867e60b2a9e84n,
+0x577c0cae7ba54d1ed988f186f02e9c76f51769748e2ca3188c37fd57e16a527an,
+0x61974ca32bf2ebcf76ee0858962e8c663725f313054e8e75fc767425c31fc8f4n,
+0x480a1932dff9d6c5f6f4fb9e9166579a12bbcd2ccb3dc2e9d16a469f85ac9f18n,
+0x0d228e6a83b0428d2f77d714629c51eee96ec6f6acf57b61173cbde79d68929fn
 ];
 
 // Verify test vectors
 for (let i = 0; i < test_msgs.length; i++) {
     let msg = test_msgs[i];
-    // Need to "encode to hash" before feeding the message to hash to scalar
-    // For a message in octets they use: el_octs = I2OSP(length(el), 8) || el
-    let encode_for_hash = concat(i2osp(msg.length, 8), msg)
-    let stuff = await hash_to_scalar(encode_for_hash, 1, dst);
+    let stuff = await hash_to_scalar(msg, 1, dst);
     console.log(`Message: ${bytesToHex(msg)}`);
     console.log("Computed scalar in hex:");
     console.log(stuff[0].toString(16));

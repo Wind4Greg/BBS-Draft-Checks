@@ -119,12 +119,12 @@ let msg_scalars = await messages_to_scalars(test_msgs);
 let L = 1;
 let gens = await prepareGenerators(test_msgs.length); // Generate enough for alls
 // // console.log(gens);
-let sk_bytes = hexToBytes("47d2ede63ab4c329092b342ab526b1079dbc2595897d4f2ab2de4d841cbe7d56");
+let sk_bytes = hexToBytes("4a39afffd624d69e81808b2e84385cc80bf86adadf764e030caa46c231f2a8d7");
 let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
 let pk_bytes = pointPk.toRawBytes(true);
 let header = hexToBytes("11223344556677889900aabbccddeeff");
 // // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature001.json
-let expected = hexToBytes("acb90d6e4db7b6eb260f1ece4fd2c1b9b92f190c9bd2be900ad5a92b80cc23db9b6d3144447cbb5f7af7c615d9a6b9ee0ba0e713ad2b77feba7c40a18b02e50ffbe0ecb13849c1c6ed496f6a21300c145a1e7e0d4cb283607f6300e40ea411b6d6255967b3298765b22c6f1dc91fa5ab");
+let expected = hexToBytes("8e65ee0ea2d5f8ccb5fe03e1f985960dab25cfd1f4035cddd74f1b48d12fe24c621c5f9f56f23845ecee82ae207371ac39f37eb451b7a1ea7e41afb1436d28eef1016674ff320f70ab1537d3da8ed48d201594558a35a8503b12abbe02b5ed805baec5d20c263134934f1991dd4d3125");
 let verified = await verify(pk_bytes, expected, header, msg_scalars.slice(0,L), gens);
 console.log(`Correct signature test one message, sig verified: ${verified}`);
 
@@ -132,7 +132,7 @@ verified = await verify(pk_bytes, expected, header, [msg_scalars[0]-1n], gens);
 console.log(`Modified message signature test, sig verified: ${verified}`);
 
 L = 10; // Try with all 10 messages
-expected = hexToBytes("b9c68aa75ed3510d2c3dd06d962106b888073b9468db2bde45c42ed32d3a04ffc14e0854ce219b77ce845fe7b06e200f66f64cb709e83a367586a70dc080b0fe242444b7cfd08977d74d91be64b468485774792526992181bc8b2d40a913c9bf561b2eeb0e149bfb7dc05d3607903513");
+expected = hexToBytes("b13ae29b49e313b1c0983056e80cfb8d84a81985ca7488557aaf9b923f1e67994cab0e5ab05c75ffcf3fde1c23207ce5218dcfec42e9cc0063ff488100f89ba08296ced4923052e597279e1f775b157c55ed6b32ba777c3eec754bda4ab096e4147f2587248ba47b22226aee2aeafd85");
 verified = await verify(pk_bytes, expected, header, msg_scalars.slice(0,L), gens);
 console.log(`Correct signature test 10 messages,  sig verified: ${verified}`);
 
