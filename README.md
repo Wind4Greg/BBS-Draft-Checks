@@ -43,11 +43,11 @@ If you want to see a simple usage and test vector verification see the file [Has
 
 ## Creating Generators
 
-For the signature scheme a number of distinct generators in the group *G1* are required and the procedure for this is given in the *draft* section 4.1. The JavaScript file [BBSGenGenerators.js](JavaScript/BBSGenGenerators.js) shows how to do this and verifies against the draft test vectors.
+For the signature scheme a number of distinct generators in the group *G1* are required and the procedure for this is given in the *draft* section 4.1. The JavaScript file [BBSGenGenerators.js](JavaScript/BBSGenGenerators.js) shows how to do this and verifies against the draft test vectors. For the variant based on SHAKE-256 hashes see [BBSGenGenerators-SHAKE.js](JavaScript/BBSGenGenerators-SHAKE.js).
 
 ## Signing Pre-computations
 
-Need to implement *MapMessageToScalar* per draft section 4.2.1. This requires implementing the functions *encode_for_hash()* and *hash_to_scalar()*. For individual messages the *encode_for_hash()* so I embedded it the the JavaScript file [BBSMsg2Scalar.js](JavaScript/BBSMsg2Scalar.js) which implements the *hash_to_scalar()* function and verifies it against the test vectors in section 7.4.1 of the draft.
+Need to implement *MapMessageToScalar* per draft section 4.2.1. This requires implementing the functions *encode_for_hash()* and *hash_to_scalar()*. For individual messages the *encode_for_hash()* so I embedded it the the JavaScript file [BBSMsg2Scalar.js](JavaScript/BBSMsg2Scalar.js) which implements the *hash_to_scalar()* function and verifies it against the test vectors in section 7.4.1 of the draft. For the variant based on SHAKE-256 hashes see [BBSMsg2Scalar-SHAKE.js](JavaScript/BBSMsg2Scalar-SHAKE.js).
 
 ## Signing
 
