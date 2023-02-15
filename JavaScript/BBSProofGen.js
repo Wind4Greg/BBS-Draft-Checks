@@ -91,10 +91,11 @@ import {bls12_381 as bls} from '@noble/curves/bls12-381';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
 import { encode_to_hash } from './BBSEncodeHash.js';
-import { hash_to_scalar, messages_to_scalars, prepareGenerators, octets_to_sig } from './BBSGeneral.js';
+import { hash_to_scalar, messages_to_scalars, prepareGenerators, octets_to_sig, calculate_random_scalars, seeded_random_scalars} from './BBSGeneral.js';
 import { randomBytes } from '@noble/hashes/utils';
 
 import fs from 'fs';
+
 
 const ciphersuite_id = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
 // prf_len = ceil(ceil(log2(r))/8),
@@ -105,7 +106,7 @@ const PRF_LEN = 32;
 /*
     I'm starting from my signing code and creating the proof...
  */
-async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, generators) {
+async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, generators, rand_scalars=calculate_random_scalars) {
     // TODO: check indexes for correctness, i.e., bounds and such...
     let L = messages.length;
     let R = disclosed_indexes.length;
@@ -153,8 +154,7 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     }
     // 8.  (r1, r2, e~, r2~, r3~, s~) = hash_to_scalar(PRF(prf_len), 6)
     // 9.  (m~_j1, ..., m~_jU) = hash_to_scalar(PRF(prf_len), U)
-    let [r1, r2, eTilde, r2Tilde, r3Tilde, sTilde] = await hash_to_scalar(randomBytes(PRF_LEN), 6, dst);
-    let mTildeU = await hash_to_scalar(randomBytes(PRF_LEN), U, dst);
+    let [r1, r2, eTilde, r2Tilde, r3Tilde, sTilde, ...mTildeU] = await rand_scalars(6+U);
     // console.log(`r1: ${r1}`);
     // console.log(`B: ${B}`);
     // console.log(`m~U: ${mTildeU}`);
@@ -277,9 +277,13 @@ let header = hexToBytes("11223344556677889900aabbccddeeff");
 // L = 10; // Try with all 10 messages
 // // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature004.json
 let signature = hexToBytes("b13ae29b49e313b1c0983056e80cfb8d84a81985ca7488557aaf9b923f1e67994cab0e5ab05c75ffcf3fde1c23207ce5218dcfec42e9cc0063ff488100f89ba08296ced4923052e597279e1f775b157c55ed6b32ba777c3eec754bda4ab096e4147f2587248ba47b22226aee2aeafd85");
-let ph = new Uint8Array();
-let disclosed_indexes = [0, 1, 2, 3, 6, 7, 8, 9];
-let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars, disclosed_indexes, gens);
+let ph = hexToBytes("bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501");
+let disclosed_indexes = [0, 1, 2,3,4,5,6,7,8,9];
+
+// If you want to check calculated proofs use the seeded random scalars
+let seed = hexToBytes("332e313431353932363533353839373933323338343632363433333833323739");
+let rand_scalar_func = seeded_random_scalars.bind(null, seed);
+let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars, disclosed_indexes, gens, rand_scalar_func);
 // console.log(`result length: ${result.length}`);
 // console.log(`expected length: ${3*48 + 5*32 + 32*(msg_scalars.length - disclosed_indexes.length)}`);
 console.log("Proof");

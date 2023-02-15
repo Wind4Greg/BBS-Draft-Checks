@@ -1,6 +1,7 @@
 /* Functions used in multiple BBS signature operations */
-import {bls12_381 as bls} from '@noble/curves/bls12-381';
-import { i2osp, concat, os2ip, numberToBytesBE} from './myUtils.js';
+import { bls12_381 as bls } from '@noble/curves/bls12-381';
+import { i2osp, concat, os2ip, numberToBytesBE } from './myUtils.js';
+import { randomBytes } from '@noble/hashes/utils';
 // These are really fixed for the ciphersuite
 // const k = 128;
 // const expand_len = Math.ceil((Math.ceil(Math.log2(Number(bls.CURVE.r))) + k) / 8); // 48
@@ -45,7 +46,7 @@ async function messages_to_scalars(messages) {
 
 async function prepareGenerators(L) {
     // Compute P1, Q1, Q2, H1, ..., HL
-    let generators = {H: []};
+    let generators = { H: [] };
     let te = new TextEncoder(); // Used to convert string to uint8Array, utf8 encoding
     const seed_dst = te.encode(CIPHERSUITE_ID + "SIG_GENERATOR_SEED_");
     const gen_dst_string = CIPHERSUITE_ID + "SIG_GENERATOR_DST_";
@@ -88,7 +89,45 @@ function octets_to_sig(sig_octets) {
     if (s < 0n || s >= bls.CURVE.r) {
         throw new TypeError('octets_to_sig: bad s value');
     }
-    return {A, e, s};
+    return { A, e, s };
 }
 
-export {hash_to_scalar, messages_to_scalars, prepareGenerators, octets_to_sig};
+function calculate_random_scalars(count) {
+    // 1. for i in (1, ..., count):
+    // 2.     r_i = OS2IP(get_random(expand_len)) mod r
+    // 3. return (r_1, r_2, ..., r_count)
+    let scalars = [];
+    for (let i = 0; i < count; i++) {
+        let r_i = os2ip(randomBytes(EXPAND_LEN)) % bls.CURVE.r;
+        scalars.push(r_i);
+    }
+    return scalars;
+}
+
+let te = new TextEncoder();
+const MOCK_DST = te.encode(CIPHERSUITE_ID + "MOCK_RANDOM_SCALARS_DST_");
+
+async function seeded_random_scalars(seed, count) {
+
+    // 1. out_len = expand_len * count
+    let out_len = EXPAND_LEN * count;
+    // 2. v = expand_message(SEED, dst, out_len)
+    let v = await bls.utils.expandMessageXMD(seed, MOCK_DST, out_len);
+    // 3. if v is INVALID, return INVALID
+    let scalars = [];
+    // 4. for i in (1, ..., count):
+    // 5.     start_idx = (i-1) * expand_len
+    // 6.     end_idx = i * expand_len - 1
+    // 7.     r_i = OS2IP(v[start_idx..end_idx]) mod r
+    for (let i = 0; i < count; i++) {
+        let tv = v.slice(i * EXPAND_LEN, (i + 1) * EXPAND_LEN);
+        // console.log(`length tv: ${tv.length}`);
+        let scalar_i = os2ip(tv) % bls.CURVE.r;
+        scalars[i] = scalar_i;
+    }
+    // 8. return (r_1, ...., r_count)
+    return scalars
+}
+
+export { hash_to_scalar, messages_to_scalars, prepareGenerators, octets_to_sig,
+     calculate_random_scalars, seeded_random_scalars };
