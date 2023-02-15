@@ -22,67 +22,66 @@ Inputs:
 
 Parameters:
 
-- ciphersuite_id, ASCII string. The unique ID of the ciphersuite.
 - P1, fixed point of G1, defined by the ciphersuite.
 
 Definitions:
 
-- L, is the non-negative integer representing the number of messages,
-     i.e., L = length(messages). If no messages are supplied, the
-     value of L MUST evaluate to zero (0).
+- L, is the non-negative integer representing the number of messages.
 - R, is the non-negative integer representing the number of disclosed
-     (revealed) messages, i.e., R = length(disclosed_indexes). If no
-     messages are disclosed, R MUST evaluate to zero (0).
+     (revealed) messages.
 - U, is the non-negative integer representing the number of undisclosed
      messages, i.e., U = L - R.
-- prf_len = ceil(ceil(log2(r))/8), where r defined by the ciphersuite.
+- expand_len = ceil((ceil(log2(r))+k)/8), where r and k are defined by
+                                          the ciphersuite.
 
 Outputs:
 
 - proof, octet string; or INVALID.
 
-Precomputations:
-
-1. (i1, ..., iR) = disclosed_indexes
-2. (j1, ..., jU) = range(1, L) \ disclosed_indexes
-3. (msg_1, ..., msg_L) = messages
-4. (msg_i1, ..., msg_iR) = (messages[i1], ..., messages[iR])
-5. (msg_j1, ..., msg_jU) = (messages[j1], ..., messages[jU])
-6. (Q_1, Q_2, MsgGenerators) = create_generators(L+2)
-7. (H_1, ..., H_L) = MsgGenerators
-8. (H_j1, ..., H_jU) = (MsgGenerators[j1], ..., MsgGenerators[jU])
-
-Procedure:
+Deserialization:
 
 1.  signature_result = octets_to_signature(signature)
 2.  if signature_result is INVALID, return INVALID
 3.  (A, e, s) = signature_result
-4.  dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
-5.  dom_for_hash = encode_for_hash(dom_array)
-6.  if dom_for_hash is INVALID, return INVALID
-7.  domain = hash_to_scalar(dom_for_hash, 1)
-8.  (r1, r2, e~, r2~, r3~, s~) = hash_to_scalar(PRF(prf_len), 6)
-9.  (m~_j1, ..., m~_jU) = hash_to_scalar(PRF(prf_len), U)
-10. B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
-11. r3 = r1 ^ -1 mod r
-12. A' = A * r1
-13. Abar = A' * (-e) + B * r1
-14. D = B * r1 + Q_1 * r2
-15. s' = r2 * r3 + s mod r
-16. C1 = A' * e~ + Q_1 * r2~
-17. C2 = D * (-r3~) + Q_1 * s~ + H_j1 * m~_j1 + ... + H_jU * m~_jU
-18. c_array = (A', Abar, D, C1, C2, R, i1, ..., iR,
-                       msg_i1, ..., msg_iR, domain, ph)
-19. c_for_hash = encode_for_hash(c_array)
-20. if c_for_hash is INVALID, return INVALID
-21. c = hash_to_scalar(c_for_hash, 1)
-22. e^ = c * e + e~ mod r
-23. r2^ = c * r2 + r2~ mod r
-24. r3^ = c * r3 + r3~ mod r
-25. s^ = c * s' + s~ mod r
-26. for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
-27. proof = (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1, ..., m^_jU))
-28. return proof_to_octets(proof)
+4.  L = length(messages)
+5.  R = length(disclosed_indexes)
+6.  U = L - R
+7.  (i1, ..., iR) = disclosed_indexes
+8.  (j1, ..., jU) = range(1, L) \ disclosed_indexes
+9.  (msg_1, ..., msg_L) = messages
+10. (msg_i1, ..., msg_iR) = (messages[i1], ..., messages[iR])
+11. (msg_j1, ..., msg_jU) = (messages[j1], ..., messages[jU])
+
+Procedure:
+
+1.  (Q_1, Q_2, MsgGenerators) = create_generators(L+2)
+2.  (H_1, ..., H_L) = MsgGenerators
+3.  (H_j1, ..., H_jU) = (MsgGenerators[j1], ..., MsgGenerators[jU])
+
+4.  domain = calculate_domain(PK, Q_1, Q_2, L, (H_1, ..., H_L), header)
+5.  if domain is INVALID, return INVALID
+6.  for i in (1, ..., U+6):
+7.      ell_i = OS2IP(get_random(expand_len)) mod r
+8.  (r1, r2, e~, r2~, r3~, s~, m~_j1, ..., m~_jU) =
+                                     (ell_1, ell_2, ..., ell_(6+U))
+9.  B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
+10. r3 = r1 ^ -1 mod r
+11. A' = A * r1
+12. Abar = A' * (-e) + B * r1
+13. D = B * r1 + Q_1 * r2
+14. s' = r2 * r3 + s mod r
+15. C1 = A' * e~ + Q_1 * r2~
+16. C2 = D * (-r3~) + Q_1 * s~ + H_j1 * m~_j1 + ... + H_jU * m~_jU
+17. c = calculate_challenge(A', Abar, D, C1, C2, (i1, ..., iR),
+                                      (msg_i1, ..., msg_iR), domain, ph)
+18. if c is INVALID, return INVALID
+19. e^ = c * e + e~ mod r
+20. r2^ = c * r2 + r2~ mod r
+21. r3^ = c * r3 + r3~ mod r
+22. s^ = c * s' + s~ mod r
+23. for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
+24. proof = (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1, ..., m^_jU))
+25. return proof_to_octets(proof)
 
 */
 
@@ -108,9 +107,13 @@ const PRF_LEN = 32;
  */
 async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, generators, rand_scalars=calculate_random_scalars) {
     // TODO: check indexes for correctness, i.e., bounds and such...
+    let proofTrace = {};
     let L = messages.length;
     let R = disclosed_indexes.length;
     let U = L - R;
+    proofTrace.L = L;
+    proofTrace.U = U;
+    proofTrace.disclosed = disclosed_indexes;
     let allIndexes = [];
     for (let i = 0; i < L; i++) {
         allIndexes[i] = i; 
@@ -120,20 +123,25 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
         tempSet.delete(dis);
     }
     let undisclosed = Array.from(tempSet); // Contains all the undisclosed indexes
-    // console.log(disclosed_indexes);
-    // console.log(undisclosed);
+    proofTrace.undisclosed = undisclosed;
 
     let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
     // check that we have enough generators for the messages
     if (messages.length > generators.H.length) {
         throw new TypeError('Sign: not enough generators! string');
     }
+    proofTrace.A = bytesToHex(A.toRawBytes(true));
+    proofTrace.e = e.toString(16);
+    proofTrace.s = s.toString(16);
+    // !!!!Still using old domain calculation procedure!!! MUST BE SAME AS SIGNATURE
+    // New procedure:
+    // 4.  domain = calculate_domain(PK, Q_1, Q_2, L, (H_1, ..., H_L), header)
     // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
-    // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let dom_array = [
         {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
         {type: "GPoint", value: generators.Q1},
         {type: "GPoint", value: generators.Q2},
+        
     ];
     for (let i = 0; i < L; i++) {
         dom_array.push({type: "GPoint", value: generators.H[i]})
@@ -144,7 +152,7 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
-    // console.log(`domain: ${domain}`);
+    proofTrace.domain = domain.toString(16);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
     let B = generators.P1;
     B = B.add(generators.Q1.multiply(s));
@@ -154,47 +162,50 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     }
     // 8.  (r1, r2, e~, r2~, r3~, s~) = hash_to_scalar(PRF(prf_len), 6)
     // 9.  (m~_j1, ..., m~_jU) = hash_to_scalar(PRF(prf_len), U)
-    let [r1, r2, eTilde, r2Tilde, r3Tilde, sTilde, ...mTildeU] = await rand_scalars(6+U);
-    // console.log(`r1: ${r1}`);
-    // console.log(`B: ${B}`);
-    // console.log(`m~U: ${mTildeU}`);
-    // 11. r3 = r1 ^ -1 mod r
+    proofTrace.B = bytesToHex(B.toRawBytes(true));
+    let randScalars = await rand_scalars(6+U);
+    proofTrace.randScalars = randScalars.map(s => s.toString(16));
+    let [r1, r2, eTilde, r2Tilde, r3Tilde, sTilde, ...mTildeU] = randScalars;
+    proofTrace.r1 = r1.toString(16);
+    proofTrace.r2 = r2.toString(16);
+    proofTrace.eTilde = eTilde.toString(16);
+    proofTrace.r2Tilde = r2Tilde.toString(16);
+    proofTrace.r3Tilde = r3Tilde.toString(16);
+    proofTrace.sTilde = sTilde.toString(16);
+    proofTrace.mTildeU = mTildeU.map(s => s.toString(16));
+    // r3 = r1 ^ -1 mod r
     let r3 = bls.Fr.inv(bls.Fr.create(r1));
-    // 12. A' = A * r1
+    proofTrace.r3 = r3.toString(16);
+    // A' = A * r1
     let Aprime = A.multiply(r1);
+    proofTrace.Aprime = bytesToHex(Aprime.toRawBytes(true));
     // 13. Abar = A' * (-e) + B * r1
     let negE = bls.Fr.neg(e);
     let Abar = Aprime.multiply(negE).add(B.multiply(r1));
-    // console.log(`e: ${e}, -e: ${negE}`);
-    // console.log(`Aprime: ${Aprime}`);
-    // console.log(`Abar: ${Abar}`);
-    // 14. D = B * r1 + Q_1 * r2
+    proofTrace.Abar = bytesToHex(Abar.toRawBytes(true));
+    // D = B * r1 + Q_1 * r2
     let D = B.multiply(r1).add(generators.Q1.multiply(r2));
-    // console.log(`D: ${D}`);
-    // 15. s' = r2 * r3 + s mod r
+    proofTrace.D = bytesToHex(D.toRawBytes(true));
+    // s' = r2 * r3 + s mod r 
     let sPrime = bls.Fr.add(bls.Fr.mul(r2, r3), s);
-    // console.log(`sPrime: ${sPrime}`);
-    // 16. C1 = A' * e~ + Q_1 * r2~
+    proofTrace.sPrime = sPrime.toString(16);
+    // C1 = A' * e~ + Q_1 * r2~
     let C1 = Aprime.multiply(eTilde).add(generators.Q1.multiply(r2Tilde));
-    // console.log(`C1: ${C1}`);
-    // 17. C2 = D * (-r3~) + Q_1 * s~ + H_j1 * m~_j1 + ... + H_jU * m~_jU
+    proofTrace.C1 = bytesToHex(C1.toRawBytes(true));
+    // C2 = D * (-r3~) + Q_1 * s~ + H_j1 * m~_j1 + ... + H_jU * m~_jU
     let neg_r3Tilde = bls.Fr.neg(r3Tilde);
     let C2 = D.multiply(neg_r3Tilde);
     // console.log(`C2 partial 1: ${C2}`);
     C2 = C2.add(generators.Q1.multiply(sTilde));
-    // console.log(`C2 partial 2: ${C2}`);
-    // console.log(`undisclosed: ${undisclosed}`);
     for (let j = 0; j < U; j++) {
         C2 = C2.add(generators.H[undisclosed[j]].multiply(mTildeU[j]));
-        // console.log(`H[undisclosed[j]]: ${generators.H[undisclosed[j]]}, mTildeU[j]: ${mTildeU[j]}`);
-        // console.log(`j = ${j}, C2 = ${C2}`);
     }
-    // console.log(`C2: ${C2}`);
-    // 18. c_array = (A', Abar, D, C1, C2, R, i1, ..., iR, msg_i1, ..., msg_iR, domain, ph)
-    // // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
+    proofTrace.C2 = bytesToHex(C2.toRawBytes(true));
+    // c = calculate_challenge(A', Abar, D, C1, C2, (i1, ..., iR), (msg_i1, ..., msg_iR), domain, ph)
+    // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
     let c_array = [{type: "GPoint", value: Aprime}, {type: "GPoint", value: Abar},
         {type: "GPoint", value: D}, {type: "GPoint", value: C1},
-        {type: "GPoint", value: C2}, {type: "NonNegInt", value: R}
+        {type: "GPoint", value: C2}
     ];
     for (let iR of disclosed_indexes) {
         c_array.push({type: "NonNegInt", value: iR});
@@ -204,35 +215,38 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
     }
     c_array.push({type: "Scalar", value: domain});
     c_array.push({type: "PlainOctets", value: ph});
-    // 19. c_for_hash = encode_for_hash(c_array)
-    // 20. if c_for_hash is INVALID, return INVALID
     let c_for_hash = encode_to_hash(c_array);
-    // 21. c = hash_to_scalar(c_for_hash, 1)
     let [c] = await hash_to_scalar(c_for_hash, 1, dst);
-    // console.log(`c: ${c}`);
-    // 22. e^ = c * e + e~ mod r
-    // console.log(`type c: ${typeof(c)}, e: ${typeof(e)}, eTilde: ${typeof(eTilde)}`);
+    proofTrace.c = c.toString(16);
+    // e^ = c * e + e~ mod r
     let eHat = bls.Fr.add(bls.Fr.mul(c, e), eTilde);
-    // console.log(`eHat: ${eHat}`);
-    // 23. r2^ = c * r2 + r2~ mod r
+    proofTrace.eHat = eHat.toString(16);
+    // r2^ = c * r2 + r2~ mod r
     let r2Hat = bls.Fr.add(bls.Fr.mul(c, r2), r2Tilde);
-    // console.log(`r2Hat: ${r2Hat}`);
-    // 24. r3^ = c * r3 + r3~ mod r
+    proofTrace.r2Hat = r2Hat.toString(16);
+    // r3^ = c * r3 + r3~ mod r
     let r3Hat = bls.Fr.add(bls.Fr.mul(c, r3), r3Tilde);
-    // console.log(`r3Hat: ${r3Hat}`);
-    // 25. s^ = c * s' + s~ mod r
+    proofTrace.r3Hat = r3Hat.toString(16);
+    // s^ = c * s' + s~ mod r
     let sHat = bls.Fr.add(bls.Fr.mul(c, sPrime), sTilde);
-    // console.log(`sHat: ${sHat}`);
-    // 26. for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
+    proofTrace.sHat = sHat.toString(16);
+    // for j in (j1, ..., jU): m^_j = c * msg_j + m~_j mod r
     let mHatU = [];
     for (let j = 0; j < U; j++) {
         let mHatj = bls.Fr.add(bls.Fr.mul(c, messages[undisclosed[j]]), mTildeU[j]);
         mHatU.push(mHatj);
     }
-    // console.log(`mHatU: ${mHatU}`);
-    // 27. proof = (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1, ..., m^_jU))
-    // 28. return proof_to_octets(proof)
-    return proof_to_octets(Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU);
+    proofTrace.mHatU = mHatU.map(s => s.toString(16));
+    // proof = (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1, ..., m^_jU))
+    // return proof_to_octets(proof)
+    let proof = proof_to_octets(Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU);
+    proofTrace.proof = bytesToHex(proof);
+    // To see a trace of the proof uncomment the lines below as desired:
+    // console.log("Proof Trace:");
+    // console.log(proofTrace);
+    fs.writeFileSync("proofTrace.json", JSON.stringify(proofTrace, null, 2));
+    // End tracing code
+    return proof;
 }
 
 const OCTET_SCALAR_LENGTH = 32;
@@ -278,16 +292,17 @@ let header = hexToBytes("11223344556677889900aabbccddeeff");
 // // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature004.json
 let signature = hexToBytes("b13ae29b49e313b1c0983056e80cfb8d84a81985ca7488557aaf9b923f1e67994cab0e5ab05c75ffcf3fde1c23207ce5218dcfec42e9cc0063ff488100f89ba08296ced4923052e597279e1f775b157c55ed6b32ba777c3eec754bda4ab096e4147f2587248ba47b22226aee2aeafd85");
 let ph = hexToBytes("bed231d880675ed101ead304512e043ade9958dd0241ea70b4b3957fba941501");
-let disclosed_indexes = [0, 1, 2,3,4,5,6,7,8,9];
+let disclosed_indexes = [0, 2, 4, 6];
 
 // If you want to check calculated proofs use the seeded random scalars
 let seed = hexToBytes("332e313431353932363533353839373933323338343632363433333833323739");
 let rand_scalar_func = seeded_random_scalars.bind(null, seed);
-let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars, disclosed_indexes, gens, rand_scalar_func);
+let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars,
+     disclosed_indexes, gens, rand_scalar_func);
 // console.log(`result length: ${result.length}`);
 // console.log(`expected length: ${3*48 + 5*32 + 32*(msg_scalars.length - disclosed_indexes.length)}`);
-console.log("Proof");
-console.log(bytesToHex(result));
+// console.log("Proof");
+// console.log(bytesToHex(result));
 // Create proof bundle: pk_bytes, header, ph, disclosed msgs, disclosed indexes, proof, total messages
 let disclosedMsgs = hex_msgs.filter((msg, i) => disclosed_indexes.includes(i));
 let proofBundle = {
