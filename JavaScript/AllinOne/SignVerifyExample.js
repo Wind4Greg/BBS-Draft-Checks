@@ -15,9 +15,11 @@ let test_msgs = [
     hexToBytes("c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075f9b80")
 ];
 
-let msg_scalars = await messages_to_scalars(test_msgs);
+let hashType = "SHAKE-256";
 
-let gens = await prepareGenerators(test_msgs.length); // Generate enough for all messages
+let msg_scalars = await messages_to_scalars(test_msgs, hashType);
+
+let gens = await prepareGenerators(test_msgs.length, hashType); // Generate enough for all messages
 
 // Prepare private and public keys
 let sk_bytes = hexToBytes("4a39afffd624d69e81808b2e84385cc80bf86adadf764e030caa46c231f2a8d7");
@@ -29,14 +31,14 @@ let header = hexToBytes("11223344556677889900aabbccddeeff");
 
 // Try signing with a single message
 let L = 1;
-let signature = await sign(sk_scalar, pk_bytes, header, msg_scalars.slice(0, L), gens);
+let signature = await sign(sk_scalar, pk_bytes, header, msg_scalars.slice(0, L), gens, hashType);
 console.log("Complete signature single message:")
 let resultString = bytesToHex(signature);
 console.log(resultString);
 // From https://github.com/decentralized-identity/bbs-signature/blob/main/tooling/fixtures/fixture_data/bls12-381-sha-256/signature/signature001.json
 let expected = "8e65ee0ea2d5f8ccb5fe03e1f985960dab25cfd1f4035cddd74f1b48d12fe24c621c5f9f56f23845ecee82ae207371ac39f37eb451b7a1ea7e41afb1436d28eef1016674ff320f70ab1537d3da8ed48d201594558a35a8503b12abbe02b5ed805baec5d20c263134934f1991dd4d3125";
 console.log(`Test vector verified: ${resultString === expected}`);
-let verified = await verify(pk_bytes, signature, header, msg_scalars.slice(0,L), gens);
+let verified = await verify(pk_bytes, signature, header, msg_scalars.slice(0,L), gens, hashType);
 console.log(`Algorithm verified: ${verified}`);
 
 L = 10; // Try with all 10 messages

@@ -1,10 +1,13 @@
 /* Single file BBS signature implementation */
 
 /* Functions used in multiple BBS signature operations */
-import {bls12_381 as bls} from '@noble/curves/bls12-381';
+/* Updating to support SHAKE-256 as well as SHA-256 */
+import { bls12_381 as bls } from '@noble/curves/bls12-381';
 import { randomBytes } from '@noble/hashes/utils';
+import { shake256 } from '@noble/hashes/sha3';
 
 const CIPHERSUITE_ID = "BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_";
+const CIPHERSUITE_ID_SHAKE = "BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_";
 const PRF_LEN = 32;
 const SCALAR_LENGTH = 32;
 const EXPAND_LEN = 48;
@@ -18,7 +21,7 @@ const POINT_LENGTH = 48;
  * @param {Uint8Array default 0 length} header 
  * @param {array of scalars (bigInt)} messages 
  */
-export async function sign(SK, PK, header, messages, generators) {
+export async function sign(SK, PK, header, messages, generators, hashType = "SHA-256") {
     // check that we have enough generators for the messages
     if (messages.length > generators.H.length) {
         throw new TypeError('Sign: not enough generators! string');
@@ -27,27 +30,29 @@ export async function sign(SK, PK, header, messages, generators) {
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let L = messages.length;
     let dom_array = [
-        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
-        {type: "GPoint", value: generators.Q1},
-        {type: "GPoint", value: generators.Q2},
+        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
+        { type: "GPoint", value: generators.Q1 },
+        { type: "GPoint", value: generators.Q2 },
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({type: "GPoint", value: generators.H[i]})
+        dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
-    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
-    dom_array.push({type: "PlainOctets", value: header});
+    // TODO: parameterize by hashType
+    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "PlainOctets", value: header });
     // console.log(dom_array);
     // dom_for_hash = encode_for_hash(dom_array)
     let dom_for_hash = encode_to_hash(dom_array);
+    // TODO: parameterize by hashType
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
     // let dst = new TextEncoder().encode("BLS12381G1_XMD:SHA-256_SSWU_RO_");
     // let dst = hexToBytes("4242535f424c53313233383147315f584d443a5348412d3235365f535357555f524f5f4d41505f4d53475f544f5f5343414c41525f41535f484153485f");
-    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
+    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // console.log(`domain: ${domain}`);
     // e_s_for_hash = encode_for_hash((SK, domain, msg_1, ..., msg_L))
-    let valArray = [{type: "Scalar", value: SK}, {type: "Scalar", value: domain}];
+    let valArray = [{ type: "Scalar", value: SK }, { type: "Scalar", value: domain }];
     for (let i = 0; i < L; i++) {
-        valArray.push({type: "Scalar", value: messages[i]});
+        valArray.push({ type: "Scalar", value: messages[i] });
     }
     // console.log(valArray);
     let e_s_for_hash = encode_to_hash(valArray);
@@ -73,25 +78,27 @@ export async function sign(SK, PK, header, messages, generators) {
     return signature_to_octets(A, e, s);
 }
 
-export async function verify(PK, signature, header, messages, generators) {
-    let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
+export async function verify(PK, signature, header, messages, generators, hashType = "SHA-256") {
+    let { A, e, s } = octets_to_sig(signature); // Get curve point and scalars
     // W = octets_to_pubkey(PK)
     let W = bls.G2.ProjectivePoint.fromHex(PK);
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let L = messages.length;
     let dom_array = [
-        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
-        {type: "GPoint", value: generators.Q1},
-        {type: "GPoint", value: generators.Q2},
+        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
+        { type: "GPoint", value: generators.Q1 },
+        { type: "GPoint", value: generators.Q2 },
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({type: "GPoint", value: generators.H[i]})
+        dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
-    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
-    dom_array.push({type: "PlainOctets", value: header});
+    // TODO: parameterize by hashType
+    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "PlainOctets", value: header });
     let dom_for_hash = encode_to_hash(dom_array);
+    // TODO: parameterize by hashType
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
-    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
+    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
     let B = generators.P1;
     B = B.add(generators.Q1.multiply(s));
@@ -111,14 +118,15 @@ export async function verify(PK, signature, header, messages, generators) {
     return bls.Fp12.eql(result, bls.Fp12.ONE);
 }
 
-export async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, generators) {
+export async function proofGen(PK, signature, header, ph, messages, disclosed_indexes,
+    generators, hashType = "SHA-256") {
     // TODO: check indexes for correctness, i.e., bounds and such...
     let L = messages.length;
     let R = disclosed_indexes.length;
     let U = L - R;
     let allIndexes = [];
     for (let i = 0; i < L; i++) {
-        allIndexes[i] = i; 
+        allIndexes[i] = i;
     }
     let tempSet = new Set(allIndexes);
     for (let dis of disclosed_indexes) {
@@ -128,7 +136,7 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
     // console.log(disclosed_indexes);
     // console.log(undisclosed);
 
-    let {A, e, s} = octets_to_sig(signature); // Get curve point and scalars
+    let { A, e, s } = octets_to_sig(signature); // Get curve point and scalars
     // check that we have enough generators for the messages
     if (messages.length > generators.H.length) {
         throw new TypeError('Sign: not enough generators! string');
@@ -136,19 +144,21 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
     // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let dom_array = [
-        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
-        {type: "GPoint", value: generators.Q1},
-        {type: "GPoint", value: generators.Q2},
+        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
+        { type: "GPoint", value: generators.Q1 },
+        { type: "GPoint", value: generators.Q2 },
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({type: "GPoint", value: generators.H[i]})
+        dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
-    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
-    dom_array.push({type: "PlainOctets", value: header});
+    // TODO: parameterize by hashType
+    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "PlainOctets", value: header });
     // dom_for_hash = encode_for_hash(dom_array)
     let dom_for_hash = encode_to_hash(dom_array);
+    // TODO: parameterize by hashType
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
-    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
+    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // console.log(`domain: ${domain}`);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
     let B = generators.P1;
@@ -198,18 +208,18 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
     // console.log(`C2: ${C2}`);
     // 18. c_array = (A', Abar, D, C1, C2, R, i1, ..., iR, msg_i1, ..., msg_iR, domain, ph)
     // // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
-    let c_array = [{type: "GPoint", value: Aprime}, {type: "GPoint", value: Abar},
-        {type: "GPoint", value: D}, {type: "GPoint", value: C1},
-        {type: "GPoint", value: C2}, {type: "NonNegInt", value: R}
+    let c_array = [{ type: "GPoint", value: Aprime }, { type: "GPoint", value: Abar },
+    { type: "GPoint", value: D }, { type: "GPoint", value: C1 },
+    { type: "GPoint", value: C2 }, { type: "NonNegInt", value: R }
     ];
     for (let iR of disclosed_indexes) {
-        c_array.push({type: "NonNegInt", value: iR});
+        c_array.push({ type: "NonNegInt", value: iR });
     }
     for (let iR of disclosed_indexes) {
-        c_array.push({type: "Scalar", value: messages[iR]});
+        c_array.push({ type: "Scalar", value: messages[iR] });
     }
-    c_array.push({type: "Scalar", value: domain});
-    c_array.push({type: "PlainOctets", value: ph});
+    c_array.push({ type: "Scalar", value: domain });
+    c_array.push({ type: "PlainOctets", value: ph });
     // 19. c_for_hash = encode_for_hash(c_array)
     // 20. if c_for_hash is INVALID, return INVALID
     let c_for_hash = encode_to_hash(c_array);
@@ -241,12 +251,13 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
     return proof_to_octets(Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU);
 }
 
-export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclosed_indexes, generators) {
+export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclosed_indexes,
+    generators, hashType = "SHA-256") {
     let R = disclosed_indexes.length;
     let U = L - R;
     let allIndexes = [];
     for (let i = 0; i < L; i++) {
-        allIndexes[i] = i; 
+        allIndexes[i] = i;
     }
     let tempSet = new Set(allIndexes);
     for (let dis of disclosed_indexes) {
@@ -257,31 +268,32 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
     // console.log(undisclosed);
     // (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1,...,m^_jU)) = proof_result
     let proof_result = octets_to_proof(proof, U);
-    let {Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU} = proof_result;
+    let { Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU } = proof_result;
     // console.log(proof_result);
     // W = octets_to_pubkey(PK)
     let W = bls.G2.ProjectivePoint.fromHex(PK);
     // dom_array = (PK, L, Q_1, Q_2, H_1, ..., H_L, ciphersuite_id, header)
     let dom_array = [
-        {type: "PublicKey", value: PK}, {type: "NonNegInt", value: L},
-        {type: "GPoint", value: generators.Q1},
-        {type: "GPoint", value: generators.Q2},
+        { type: "PublicKey", value: PK }, { type: "NonNegInt", value: L },
+        { type: "GPoint", value: generators.Q1 },
+        { type: "GPoint", value: generators.Q2 },
     ];
     for (let i = 0; i < L; i++) {
-        dom_array.push({type: "GPoint", value: generators.H[i]})
+        dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
-    dom_array.push({type: "CipherID", value: CIPHERSUITE_ID});
-    dom_array.push({type: "PlainOctets", value: header});
+    // TODO: parameterize by hashType
+    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "PlainOctets", value: header });
     let dom_for_hash = encode_to_hash(dom_array);
     let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
-    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst);
+    let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // console.log(`domain: ${domain}`);
     // C1 = (Abar - D) * c + A' * e^ + Q_1 * r2^
     let C1 = Abar.subtract(D).multiply(c).add(Aprime.multiply(eHat)).add(generators.Q1.multiply(r2Hat));
     // console.log(`C1: ${C1}`);
     // T = P1 + Q_2 * domain + H_i1 * msg_i1 + ... + H_iR * msg_iR
     let T = generators.P1.add(generators.Q2.multiply(domain));
-    for (let i = 0; i < R; i ++) {
+    for (let i = 0; i < R; i++) {
         T = T.add(generators.H[disclosed_indexes[i]].multiply(disclosed_messages[i]));
     }
     // console.log(`T: ${T}`);
@@ -297,18 +309,18 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
     // 15. if cv_for_hash is INVALID, return INVALID
     // 16. cv = hash_to_scalar(cv_for_hash, 1)
     // 17. if c != cv, return INVALID
-    let cv_array = [{type: "GPoint", value: Aprime}, {type: "GPoint", value: Abar},
-        {type: "GPoint", value: D}, {type: "GPoint", value: C1}, {type: "GPoint", value: C2},
-        {type: "NonNegInt", value: R},
-        ];
+    let cv_array = [{ type: "GPoint", value: Aprime }, { type: "GPoint", value: Abar },
+    { type: "GPoint", value: D }, { type: "GPoint", value: C1 }, { type: "GPoint", value: C2 },
+    { type: "NonNegInt", value: R },
+    ];
     for (let index of disclosed_indexes) {
-        cv_array.push({type: "NonNegInt", value: index});
+        cv_array.push({ type: "NonNegInt", value: index });
     }
     for (let msg of disclosed_messages) {
-        cv_array.push({type: "Scalar", value: msg});
+        cv_array.push({ type: "Scalar", value: msg });
     }
-    cv_array.push({type: "Scalar", value: domain});
-    cv_array.push({type: "PlainOctets", value: ph});
+    cv_array.push({ type: "Scalar", value: domain });
+    cv_array.push({ type: "PlainOctets", value: ph });
     let cv_for_hash = encode_to_hash(cv_array);
     let [cv] = await hash_to_scalar(cv_for_hash, 1, dst);
     if (c !== cv) {
@@ -331,6 +343,15 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
     return bls.Fp12.eql(result, bls.Fp12.ONE);
 }
 
+function expandMessageXOF(msg, DST, len_in_bytes) {
+    let DST_prime = concat(DST, i2osp(DST.length, 1));
+    // console.log(bytesToHex(DST_prime))
+    let msg_prime = concat(concat(msg, i2osp(len_in_bytes, 2)), DST_prime);
+    // console.log(bytesToHex(msg_prime));
+    // console.log(`Output length: ${len_in_bytes}`);
+    return shake256(msg_prime, { dkLen: len_in_bytes });
+}
+
 
 // General BBS related constants and functions
 
@@ -338,7 +359,7 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
 
 function octets_to_proof(octets, U) {
     // recover (A', Abar, D, c, e^, r2^, r3^, s^, (m^_j1,...,m^_jU)) from octets
-    let expected_length = 3*POINT_LENGTH + 5*SCALAR_LENGTH + U*SCALAR_LENGTH;
+    let expected_length = 3 * POINT_LENGTH + 5 * SCALAR_LENGTH + U * SCALAR_LENGTH;
     if (octets.length !== expected_length) {
         throw new TypeError('octets_to_proof: bad proof length');
     }
@@ -386,7 +407,7 @@ function octets_to_proof(octets, U) {
         mHatU.push(mHatj);
         index += SCALAR_LENGTH;
     }
-    return {Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU};
+    return { Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU };
 }
 
 function proof_to_octets(Aprime, Abar, D, c, eHat, r2Hat, r3Hat, sHat, mHatU) {
@@ -453,14 +474,19 @@ function encode_to_hash(elem_array) {
     return octets;
 }
 
-async function hash_to_scalar(msg_octets, count, dst) {
+async function hash_to_scalar(msg_octets, count, dst, hashType = "SHA-256") {
     const len_in_bytes = count * EXPAND_LEN;
     let t = 0;
     let have_scalars = false;
     let scalars = [];
     while (!have_scalars) {
         let msg_prime = concat(msg_octets, concat(i2osp(t, 1), i2osp(count, 4)));
-        let uniform_bytes = await bls.utils.expandMessageXMD(msg_prime, dst, len_in_bytes);
+        let uniform_bytes;
+        if (hashType === "SHA-256") {
+            uniform_bytes = await bls.utils.expandMessageXMD(msg_prime, dst, len_in_bytes);
+        } else {
+            uniform_bytes = expandMessageXOF(msg_prime, dst, len_in_bytes);
+        }
         have_scalars = true;
         for (let i = 0; i < count; i++) {
             let tv = uniform_bytes.slice(i * EXPAND_LEN, (i + 1) * EXPAND_LEN);
@@ -476,31 +502,50 @@ async function hash_to_scalar(msg_octets, count, dst) {
     return scalars;
 }
 
-export async function messages_to_scalars(messages) {
+export async function messages_to_scalars(messages, hashType = "SHA-256") {
     const dst = new TextEncoder().encode(CIPHERSUITE_ID + "MAP_MSG_TO_SCALAR_AS_HASH_");
     let scalars = [];
     for (let i = 0; i < messages.length; i++) {
         let msg = messages[i];
-        let stuff = await hash_to_scalar(msg, 1, dst);
+        let stuff = await hash_to_scalar(msg, 1, dst, hashType);
         scalars.push(stuff[0]);
     }
     return scalars;
 }
 
-export async function prepareGenerators(L) {
+export async function prepareGenerators(L, hashType = "SHA-256") {
     // Compute P1, Q1, Q2, H1, ..., HL
-    let generators = {H: []};
+    let generators = { H: [] };
     let te = new TextEncoder(); // Used to convert string to uint8Array, utf8 encoding
-    const seed_dst = te.encode(CIPHERSUITE_ID + "SIG_GENERATOR_SEED_");
-    const gen_dst_string = CIPHERSUITE_ID + "SIG_GENERATOR_DST_";
-    const gen_seed = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_MESSAGE_GENERATOR_SEED");
-    let v = await bls.utils.expandMessageXMD(gen_seed, seed_dst, SEED_LEN);
+    let ciphersuite_id = CIPHERSUITE_ID;
+    if (hashType === "SHAKE-256") {
+        ciphersuite_id = CIPHERSUITE_ID_SHAKE;
+    }
+    const seed_dst = te.encode(ciphersuite_id + "SIG_GENERATOR_SEED_");
+    const gen_dst_string = ciphersuite_id + "SIG_GENERATOR_DST_";
+    const gen_seed = te.encode(ciphersuite_id + "MESSAGE_GENERATOR_SEED");
+    let v;
+    if (hashType === "SHA-256") {
+        v = await bls.utils.expandMessageXMD(gen_seed, seed_dst, SEED_LEN);
+    } else {
+        v = expandMessageXOF(gen_seed, seed_dst, SEED_LEN);
+    }
     let count = L + 2;
     let n = 1;
     for (let i = 0; i < count; i++) {
-        v = await bls.utils.expandMessageXMD(concat(v, i2osp(n, 4)), seed_dst, SEED_LEN);
+        if (hashType === "SHA-256") {
+            v = await bls.utils.expandMessageXMD(concat(v, i2osp(n, 4)), seed_dst, SEED_LEN);
+        } else {
+            v = expandMessageXOF(concat(v, i2osp(n, 4)), seed_dst, SEED_LEN);
+        }
         n = n + 1;
-        let candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string });
+        // TODO: parameterize by hashType
+        let candidate;
+        if (hashType === "SHA-256") {
+            candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string });
+        } else {
+            candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string, expand: "xof", hash: shake256 });
+        }
         if (i === 0) {
             generators.Q1 = candidate;
         } else if (i === 1) {
@@ -510,10 +555,17 @@ export async function prepareGenerators(L) {
         }
     }
     // Generate P1
-    const gen_seed_P1 = te.encode("BBS_BLS12381G1_XMD:SHA-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
-    v = await bls.utils.expandMessageXMD(gen_seed_P1, seed_dst, SEED_LEN);
-    v = await bls.utils.expandMessageXMD(concat(v, i2osp(1, 4)), seed_dst, SEED_LEN);
-    let candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string });
+    const gen_seed_P1 = te.encode(ciphersuite_id + "BP_MESSAGE_GENERATOR_SEED");
+    let candidate;
+    if (hashType === "SHA-256") {
+        v = await bls.utils.expandMessageXMD(gen_seed_P1, seed_dst, SEED_LEN);
+        v = await bls.utils.expandMessageXMD(concat(v, i2osp(1, 4)), seed_dst, SEED_LEN);
+        candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string });
+    } else {
+        v = expandMessageXOF(gen_seed_P1, seed_dst, SEED_LEN);
+        v = expandMessageXOF(concat(v, i2osp(1, 4)), seed_dst, SEED_LEN);
+        candidate = await bls.hashToCurve.G1.hashToCurve(v, {DST: gen_dst_string, expand: "xof", hash: shake256});
+    }
     generators.P1 = candidate;
     return generators;
 }
@@ -532,7 +584,7 @@ function octets_to_sig(sig_octets) {
     if (s < 0n || s >= bls.CURVE.r) {
         throw new TypeError('octets_to_sig: bad s value');
     }
-    return {A, e, s};
+    return { A, e, s };
 }
 
 // Some necessary utilities some borrowed others hacked
