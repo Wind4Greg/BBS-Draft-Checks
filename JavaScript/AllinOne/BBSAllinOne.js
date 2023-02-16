@@ -22,6 +22,10 @@ const POINT_LENGTH = 48;
  * @param {array of scalars (bigInt)} messages 
  */
 export async function sign(SK, PK, header, messages, generators, hashType = "SHA-256") {
+    let ciphersuite_id = CIPHERSUITE_ID;
+    if (hashType === "SHAKE-256") {
+        ciphersuite_id = CIPHERSUITE_ID_SHAKE;
+    }
     // check that we have enough generators for the messages
     if (messages.length > generators.H.length) {
         throw new TypeError('Sign: not enough generators! string');
@@ -38,13 +42,13 @@ export async function sign(SK, PK, header, messages, generators, hashType = "SHA
         dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
     // TODO: parameterize by hashType
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "CipherID", value: ciphersuite_id });
     dom_array.push({ type: "PlainOctets", value: header });
     // console.log(dom_array);
     // dom_for_hash = encode_for_hash(dom_array)
     let dom_for_hash = encode_to_hash(dom_array);
     // TODO: parameterize by hashType
-    let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
+    let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
     // let dst = new TextEncoder().encode("BLS12381G1_XMD:SHA-256_SSWU_RO_");
     // let dst = hexToBytes("4242535f424c53313233383147315f584d443a5348412d3235365f535357555f524f5f4d41505f4d53475f544f5f5343414c41525f41535f484153485f");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
@@ -79,6 +83,10 @@ export async function sign(SK, PK, header, messages, generators, hashType = "SHA
 }
 
 export async function verify(PK, signature, header, messages, generators, hashType = "SHA-256") {
+    let ciphersuite_id = CIPHERSUITE_ID;
+    if (hashType === "SHAKE-256") {
+        ciphersuite_id = CIPHERSUITE_ID_SHAKE;
+    }
     let { A, e, s } = octets_to_sig(signature); // Get curve point and scalars
     // W = octets_to_pubkey(PK)
     let W = bls.G2.ProjectivePoint.fromHex(PK);
@@ -92,12 +100,10 @@ export async function verify(PK, signature, header, messages, generators, hashTy
     for (let i = 0; i < L; i++) {
         dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
-    // TODO: parameterize by hashType
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "CipherID", value: ciphersuite_id });
     dom_array.push({ type: "PlainOctets", value: header });
     let dom_for_hash = encode_to_hash(dom_array);
-    // TODO: parameterize by hashType
-    let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
+    let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
     let B = generators.P1;
@@ -120,6 +126,10 @@ export async function verify(PK, signature, header, messages, generators, hashTy
 
 export async function proofGen(PK, signature, header, ph, messages, disclosed_indexes,
     generators, hashType = "SHA-256") {
+    let ciphersuite_id = CIPHERSUITE_ID;
+    if (hashType === "SHAKE-256") {
+        ciphersuite_id = CIPHERSUITE_ID_SHAKE;
+    }
     // TODO: check indexes for correctness, i.e., bounds and such...
     let L = messages.length;
     let R = disclosed_indexes.length;
@@ -152,12 +162,12 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
         dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
     // TODO: parameterize by hashType
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "CipherID", value: ciphersuite_id });
     dom_array.push({ type: "PlainOctets", value: header });
     // dom_for_hash = encode_for_hash(dom_array)
     let dom_for_hash = encode_to_hash(dom_array);
     // TODO: parameterize by hashType
-    let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
+    let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // console.log(`domain: ${domain}`);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
@@ -253,6 +263,10 @@ export async function proofGen(PK, signature, header, ph, messages, disclosed_in
 
 export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclosed_indexes,
     generators, hashType = "SHA-256") {
+    let ciphersuite_id = CIPHERSUITE_ID;
+    if (hashType === "SHAKE-256") {
+        ciphersuite_id = CIPHERSUITE_ID_SHAKE;
+    }
     let R = disclosed_indexes.length;
     let U = L - R;
     let allIndexes = [];
@@ -282,10 +296,10 @@ export async function proofVerify(PK, proof, L, header, ph, disclosed_messages, 
         dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
     // TODO: parameterize by hashType
-    dom_array.push({ type: "CipherID", value: CIPHERSUITE_ID });
+    dom_array.push({ type: "CipherID", value: ciphersuite_id });
     dom_array.push({ type: "PlainOctets", value: header });
     let dom_for_hash = encode_to_hash(dom_array);
-    let dst = new TextEncoder().encode(CIPHERSUITE_ID + "H2S_");
+    let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // console.log(`domain: ${domain}`);
     // C1 = (Abar - D) * c + A' * e^ + Q_1 * r2^
@@ -539,7 +553,6 @@ export async function prepareGenerators(L, hashType = "SHA-256") {
             v = expandMessageXOF(concat(v, i2osp(n, 4)), seed_dst, SEED_LEN);
         }
         n = n + 1;
-        // TODO: parameterize by hashType
         let candidate;
         if (hashType === "SHA-256") {
             candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string });
@@ -564,7 +577,7 @@ export async function prepareGenerators(L, hashType = "SHA-256") {
     } else {
         v = expandMessageXOF(gen_seed_P1, seed_dst, SEED_LEN);
         v = expandMessageXOF(concat(v, i2osp(1, 4)), seed_dst, SEED_LEN);
-        candidate = await bls.hashToCurve.G1.hashToCurve(v, {DST: gen_dst_string, expand: "xof", hash: shake256});
+        candidate = await bls.hashToCurve.G1.hashToCurve(v, { DST: gen_dst_string, expand: "xof", hash: shake256 });
     }
     generators.P1 = candidate;
     return generators;

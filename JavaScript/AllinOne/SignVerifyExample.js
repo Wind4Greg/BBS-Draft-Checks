@@ -18,8 +18,18 @@ let test_msgs = [
 let hashType = "SHAKE-256";
 
 let msg_scalars = await messages_to_scalars(test_msgs, hashType);
-
+console.log("Message scalars:");
+let msgScalarsHex = msg_scalars.map(s => s.toString(16));
+console.log(msgScalarsHex);
 let gens = await prepareGenerators(test_msgs.length, hashType); // Generate enough for all messages
+let gensHex = {
+    Q1: bytesToHex(gens.Q1.toRawBytes(true)),
+    Q2: bytesToHex(gens.Q2.toRawBytes(true)),
+    P1: bytesToHex(gens.P1.toRawBytes(true)),
+    H: gens.H.map(h => bytesToHex(h.toRawBytes(true)))
+};
+console.log(gensHex);
+
 
 // Prepare private and public keys
 let sk_bytes = hexToBytes("4a39afffd624d69e81808b2e84385cc80bf86adadf764e030caa46c231f2a8d7");

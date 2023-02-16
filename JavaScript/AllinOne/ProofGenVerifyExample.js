@@ -14,11 +14,13 @@ let hex_msgs = [
     "77fe97eb97a1ebe2e81e4e3597a3ee740a66e9ef2412472c23364568523f8b91",
     "7372e9daa5ed31e6cd5c825eac1b855e84476a1d94932aa348e07b7320912416",
     "c344136d9ab02da4dd5908bbba913ae6f58c2cc844b802a6f811f5fb075f9b80"
-]
+];
+
+let hashType = "SHA-256";
 
 let test_msgs = hex_msgs.map(hex => hexToBytes(hex)); // Convert to byte array
-let msg_scalars = await messages_to_scalars(test_msgs); // hash to scalars
-let gens = await prepareGenerators(test_msgs.length); // Generate enough for all msgs
+let msg_scalars = await messages_to_scalars(test_msgs, hashType); // hash to scalars
+let gens = await prepareGenerators(test_msgs.length, hashType); // Generate enough for all msgs
 
 let sk_bytes = hexToBytes("4a39afffd624d69e81808b2e84385cc80bf86adadf764e030caa46c231f2a8d7");
 let pointPk = bls.G2.ProjectivePoint.fromPrivateKey(sk_bytes);
@@ -29,7 +31,7 @@ let header = hexToBytes("11223344556677889900aabbccddeeff");
 let signature = hexToBytes("b13ae29b49e313b1c0983056e80cfb8d84a81985ca7488557aaf9b923f1e67994cab0e5ab05c75ffcf3fde1c23207ce5218dcfec42e9cc0063ff488100f89ba08296ced4923052e597279e1f775b157c55ed6b32ba777c3eec754bda4ab096e4147f2587248ba47b22226aee2aeafd85");
 let ph = new Uint8Array();
 let disclosed_indexes = [0, 1, 2, 3, 6, 7, 8, 9];
-let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars, disclosed_indexes, gens);
+let result = await proofGen(pk_bytes, signature, header, ph, msg_scalars, disclosed_indexes, gens, hashType);
 // console.log(`result length: ${result.length}`);
 // console.log(`expected length: ${3*48 + 5*32 + 32*(msg_scalars.length - disclosed_indexes.length)}`);
 console.log("Proof");
@@ -59,5 +61,5 @@ let phV = hexToBytes(proofBundle.ph);
 let dis_msg_octets = proofBundle.disclosedMsgs.map(hex => hexToBytes(hex));
 let disclosed_msgs = await messages_to_scalars(dis_msg_octets);
 let disclosed_indexesV = proofBundle.disclosedIndexes;
-result = await proofVerify(pk, proof, L, headerV, phV, disclosed_msgs, disclosed_indexesV, gens);
+result = await proofVerify(pk, proof, L, headerV, phV, disclosed_msgs, disclosed_indexesV, gens, hashType);
 console.log(`Proof verified: ${result}`);

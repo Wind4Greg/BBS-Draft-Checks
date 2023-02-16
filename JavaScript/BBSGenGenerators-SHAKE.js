@@ -116,9 +116,9 @@ const k = 128
 const seed_len = Math.ceil((Math.ceil(Math.log2(Number(r)) + k)) / 8);
 console.log(`seed_len is: ${seed_len}`);
 // Use this for the base point P1 generation
-// const gen_seed = te.encode("BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
+const gen_seed = te.encode("BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_BP_MESSAGE_GENERATOR_SEED");
 // Use this for message generator creation
-const gen_seed = te.encode("BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_MESSAGE_GENERATOR_SEED");
+// const gen_seed = te.encode("BBS_BLS12381G1_XOF:SHAKE-256_SSWU_RO_MESSAGE_GENERATOR_SEED");
 // v = expand_message(generator_seed, seed_dst, seed_len)
 let v = expandMessageXOF(gen_seed, seed_dst, seed_len);
 console.log("Initial v:");
@@ -132,8 +132,8 @@ for (let i = 0; i < count; i++) {
     console.log(bytesToHex(v_cat_n_4));
     // order of arguments message, DST, length in bytes
     v = expandMessageXOF(v_cat_n_4, seed_dst, seed_len);
-    // console.log("current v:")
-    // console.log(bytesToHex(v));
+    console.log("current v:")
+    console.log(bytesToHex(v));
     n = n + 1;
     // candidate = hash_to_curve_g1(v, generator_dst)
     let candidate = await bls.hashToCurve.G1.hashToCurve(v, {DST: gen_dst_string, expand: "xof", hash: shake256});
