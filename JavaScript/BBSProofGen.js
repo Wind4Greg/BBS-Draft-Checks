@@ -201,11 +201,13 @@ async function proofGen(PK, signature, header, ph, messages, disclosed_indexes, 
         C2 = C2.add(generators.H[undisclosed[j]].multiply(mTildeU[j]));
     }
     proofTrace.C2 = bytesToHex(C2.toRawBytes(true));
-    // c = calculate_challenge(A', Abar, D, C1, C2, (i1, ..., iR), (msg_i1, ..., msg_iR), domain, ph)
+    // Note that the **R** parameter, number of revealed is not in the latest draft
+    // c = calculate_challenge(A', Abar, D, C1, C2, **R**, (i1, ..., iR), (msg_i1, ..., msg_iR), domain, ph)
     // elemTypes:"PublicKey", "NonNegInt", "GPoint", "Scalar", "PlainOctets", "CipherID", "ASCII"
     let c_array = [{type: "GPoint", value: Aprime}, {type: "GPoint", value: Abar},
         {type: "GPoint", value: D}, {type: "GPoint", value: C1},
-        {type: "GPoint", value: C2}
+        {type: "GPoint", value: C2},
+        {type: "NonNegInt", value: disclosed_indexes.length}
     ];
     for (let iR of disclosed_indexes) {
         c_array.push({type: "NonNegInt", value: iR});

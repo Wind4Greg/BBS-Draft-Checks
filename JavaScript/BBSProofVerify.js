@@ -162,9 +162,11 @@ async function proofVerify(PK, proof, L, header, ph, disclosed_messages, disclos
         C2 = C2.add(generators.H[undisclosed[j]].multiply(mHatU[j]));
     }
     verifyTrace.C2 = bytesToHex(C2.toRawBytes(true));
-    // cv = calculate_challenge(A', Abar, D, C1, C2, (i1, ..., iR), (msg_i1, ..., msg_iR), domain, ph)
+    // Note that the **R** parameter, number of revealed is not in the latest draft
+    // cv = calculate_challenge(A', Abar, D, C1, C2, **R**, (i1, ..., iR), (msg_i1, ..., msg_iR), domain, ph)
     let cv_array = [{ type: "GPoint", value: Aprime }, { type: "GPoint", value: Abar },
     { type: "GPoint", value: D }, { type: "GPoint", value: C1 }, { type: "GPoint", value: C2 },
+    {type: "NonNegInt", value: disclosed_indexes.length}
     ];
     for (let index of disclosed_indexes) {
         cv_array.push({ type: "NonNegInt", value: index });
