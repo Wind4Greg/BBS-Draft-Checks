@@ -41,16 +41,12 @@ export async function sign(SK, PK, header, messages, generators, hashType = "SHA
     for (let i = 0; i < L; i++) {
         dom_array.push({ type: "GPoint", value: generators.H[i] })
     }
-    // TODO: parameterize by hashType
     dom_array.push({ type: "CipherID", value: ciphersuite_id });
     dom_array.push({ type: "PlainOctets", value: header });
     // console.log(dom_array);
     // dom_for_hash = encode_for_hash(dom_array)
     let dom_for_hash = encode_to_hash(dom_array);
-    // TODO: parameterize by hashType
     let dst = new TextEncoder().encode(ciphersuite_id + "H2S_");
-    // let dst = new TextEncoder().encode("BLS12381G1_XMD:SHA-256_SSWU_RO_");
-    // let dst = hexToBytes("4242535f424c53313233383147315f584d443a5348412d3235365f535357555f524f5f4d41505f4d53475f544f5f5343414c41525f41535f484153485f");
     let [domain] = await hash_to_scalar(dom_for_hash, 1, dst, hashType);
     // console.log(`domain: ${domain}`);
     // e_s_for_hash = encode_for_hash((SK, domain, msg_1, ..., msg_L))
@@ -60,7 +56,7 @@ export async function sign(SK, PK, header, messages, generators, hashType = "SHA
     }
     // console.log(valArray);
     let e_s_for_hash = encode_to_hash(valArray);
-    let [e, s] = await hash_to_scalar(e_s_for_hash, 2, dst);
+    let [e, s] = await hash_to_scalar(e_s_for_hash, 2, dst, hashType);
     // B = P1 + Q_1 * s + Q_2 * domain + H_1 * msg_1 + ... + H_L * msg_L
     let B = generators.P1;
     B = B.add(generators.Q1.multiply(s));
@@ -517,7 +513,11 @@ async function hash_to_scalar(msg_octets, count, dst, hashType = "SHA-256") {
 }
 
 export async function messages_to_scalars(messages, hashType = "SHA-256") {
-    const dst = new TextEncoder().encode(CIPHERSUITE_ID + "MAP_MSG_TO_SCALAR_AS_HASH_");
+    let ciphersuite_id = CIPHERSUITE_ID;
+    if (hashType === "SHAKE-256") {
+        ciphersuite_id = CIPHERSUITE_ID_SHAKE;
+    }
+    const dst = new TextEncoder().encode(ciphersuite_id + "MAP_MSG_TO_SCALAR_AS_HASH_");
     let scalars = [];
     for (let i = 0; i < messages.length; i++) {
         let msg = messages[i];
